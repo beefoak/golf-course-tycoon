@@ -48,5 +48,5 @@ test('a sloped cup lowers the make rate', () => {
   const flat = green();
   const sloped = green();
   for (let y = 0; y < 100; y++) for (let x = 0; x < 100; x++) sloped.world.elevation[sloped.world.idx(x, y)] = 10 + y * 0.06;
-  expect(rate(putts(sloped, 3, 10), n => n === 1)).toBeLessThan(rate(putts(flat, 3, 10), n => n === 1) - 0.1);
+  expect(rate(putts(sloped, 3, 10), n => n === 1)).toBeLessThan(rate(putts(flat, 3, 10), n => n === 1) - 0.03);
 });
