@@ -31,6 +31,12 @@ export type Command =
   | { t: 'reopenHole'; holeId: number; method?: GrowMethod }
   | { t: 'placeBuilding'; kind: BuildingKind; courseId: number; origin: Vec2 }
   | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }
+  | { t: 'setProgramRule'; courseId: number; rule: import('./staff/program').ProgramRule; index?: number }
+  | { t: 'removeProgramRule'; courseId: number; index: number }
+  | { t: 'createZone'; courseId: number; name: string; holeIds: number[] }
+  | { t: 'assignZone'; staffId: number; zone: number | null }
+  | { t: 'createUrgentOrder'; courseId: number; practice: import('./turf/practices').Practice; tiles: number[] }
+  | { t: 'pauseOrder'; id: number; paused?: boolean }
   | { t: 'buyEquipment'; courseId: number; kind: import('./staff/equipment').EquipmentKind; tier: 1 | 2 | 3 }
   | { t: 'sellEquipment'; id: number }
   | { t: 'assignEquipment'; id: number; staffId: number | null }

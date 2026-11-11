@@ -21,6 +21,8 @@ import { practiceCommand, practicesSystem } from './turf/practices';
 import { StaffRoster, setShift, setWage, train } from './staff/staff';
 import { moraleSystem } from './staff/morale';
 import { findCandidate } from './staff/market';
+import { MaintenanceProgram, assignZone, createZone, removeProgramRule, setProgramRule } from './staff/program';
+import { WorkOrderBook, createUrgentOrder, newOrderBook, pauseOrder, programSystem } from './staff/workOrders';
 import { Fleet, assignEquipment, attachEquipment, buyEquipment, newFleet, sellEquipment, upgradeBuilding } from './staff/equipment';
 import { attachIrrigation, IrrigationSystem, newIrrigation, placePipe, placePump, placeSprinkler, removeSprinkler, repairSprinkler, setSchedule } from './turf/irrigation';
 import type { CourseStats } from './golfers/stats';
@@ -111,6 +113,8 @@ export class Game {
   staff = new StaffRoster();
   staffRng: Rng;
   equipment: Fleet = newFleet();
+  programs = new Map<number, MaintenanceProgram>();
+  workOrders: WorkOrderBook = newOrderBook();
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
@@ -150,6 +154,7 @@ export class Game {
     g.registerSystem(practicesSystem);
     g.registerSystem(moraleSystem);
     attachEquipment(g);
+    g.registerSystem(programSystem);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }
@@ -213,6 +218,18 @@ export class Game {
         return placeStructure(this, c.kind, c.at);
       case 'placeBuilding':
         return placeBuilding(this, c.kind, c.courseId, c.origin);
+      case 'setProgramRule':
+        return setProgramRule(this, c.courseId, c.rule, c.index);
+      case 'removeProgramRule':
+        return removeProgramRule(this, c.courseId, c.index);
+      case 'createZone':
+        return createZone(this, c.courseId, c.name, c.holeIds);
+      case 'assignZone':
+        return assignZone(this, c.staffId, c.zone);
+      case 'createUrgentOrder':
+        return createUrgentOrder(this, c.courseId, c.practice, c.tiles);
+      case 'pauseOrder':
+        return pauseOrder(this, c.id, c.paused ?? true);
       case 'buyEquipment':
         return buyEquipment(this, c.courseId, c.kind, c.tier);
       case 'sellEquipment':
