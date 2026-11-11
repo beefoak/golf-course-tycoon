@@ -84,11 +84,12 @@ export function planTerrain(g: Game, tiles: Vec2[], op: TerrainOp): EditPlan {
 
   let cut = 0, fill = 0;
   for (const [i, h] of targets) {
-    const d = h - w.elevation[i]!;
+    const to = Math.max(0, h);
+    const d = to - w.elevation[i]!;
     if (Math.abs(d) < 1e-6) continue;
     if (d < 0) cut += -d * TILE_AREA;
     else fill += d * TILE_AREA;
-    p.changes.push({ i, elevation: Math.max(0, h) });
+    p.changes.push({ i, elevation: to });
   }
   const available = g.soilStockpileM3 + cut;
   const fromStock = Math.min(fill, available);

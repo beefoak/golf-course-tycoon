@@ -46,6 +46,8 @@ export interface Group {
   /** absolute minute the current hole started */
   holeStartAbsMin: number;
   rng: Rng;
+  /** shot target planned for the ball about to be played, reused while waiting on the group ahead */
+  planned?: { golferId: number; strokes: number; target: Vec2 } | null;
 }
 
 export const WALK_MPS = 1.3;
@@ -100,6 +102,12 @@ export function countGroupsOnHole(g: Game, holeId: number): number {
   return n;
 }
 
+/** Skip holes in the group's order that closed (or vanished) since booking; false when none are left. */
+function skipClosedHoles(g: Game, grp: Group): boolean {
+  while (grp.holeIdx < grp.holeOrder.length && g.courses.hole(grp.holeOrder[grp.holeIdx]!)?.state !== 'open') grp.holeIdx++;
+  return grp.holeIdx < grp.holeOrder.length;
+}
+
 function startHoleFor(g: Game, grp: Group): void {
   const hole = g.courses.hole(currentHoleId(grp)!)!;
   grp.holeWaitStart = grp.waitingMin;
@@ -144,7 +152,7 @@ function finishHole(g: Game, grp: Group): void {
   }
   g.events.emit('holeComplete', { groupId: grp.id, holeId, results });
   grp.holeIdx++;
-  if (grp.holeIdx < grp.holeOrder.length) {
+  if (skipClosedHoles(g, grp)) {
     startHoleFor(g, grp);
     grp.phase = 'toNextTee';
   } else {
@@ -182,6 +190,7 @@ function tickGroup(g: Game, grp: Group): void {
     grp.started = true;
     grp.startAbsMin = g.clock.absMinute;
     g.events.emit('roundStart', { groupId: grp.id });
+    if (!skipClosedHoles(g, grp)) { endRound(g, grp); return; }
     startHoleFor(g, grp);
     const course = g.courses.get(grp.courseId)!;
     const first = nextToPlay(grp)!;
@@ -215,10 +224,15 @@ function tickGroup(g: Game, grp: Group): void {
   const golfer = golferOf(g, b.golferId);
   const putting = isPutt(g, b);
   if (!putting) {
-    const target = nextTarget(g, golfer, hole, b)!;
+    let pl = grp.planned;
+    if (!pl || pl.golferId !== b.golferId || pl.strokes !== b.strokes) {
+      pl = grp.planned = { golferId: b.golferId, strokes: b.strokes, target: nextTarget(g, golfer, hole, b)! };
+    }
+    const target = pl.target;
     if (blockedByGroupAhead(g, grp, b.pos, target)) { grp.waitingMin += 1 / TICKS_PER_MIN; return; }
   }
   grp.current = b.golferId;
+  grp.planned = null;
   grp.phase = putting ? 'putting' : b.strokes === 0 ? 'teeing' : 'addressing';
   grp.busySec = putting ? PUTT_SEC : SHOT_SEC;
 }
@@ -226,10 +240,16 @@ function tickGroup(g: Game, grp: Group): void {
 /** Headless finish (e.g. the day ended with the group still out): play out every remaining stroke. */
 export function finishRoundHeadless(g: Game, grp: Group): void {
   if (grp.phase === 'done') return;
-  if (!grp.started) { grp.started = true; grp.startAbsMin = g.clock.absMinute; g.events.emit('roundStart', { groupId: grp.id }); startHoleFor(g, grp); }
+  if (grp.phase === 'toClubhouse') { endRound(g, grp); return; }
+  if (!grp.started) {
+    grp.started = true; grp.startAbsMin = g.clock.absMinute; g.events.emit('roundStart', { groupId: grp.id });
+    if (!skipClosedHoles(g, grp)) { endRound(g, grp); return; }
+    startHoleFor(g, grp);
+  }
   while ((grp.phase as GroupPhase) !== 'done') {
     for (const id of grp.golferIds) {
-      const b = grp.balls.get(id)!;
+      const b = grp.balls.get(id);
+      if (!b) continue;
       const hole = g.courses.hole(b.holeId);
       if (!hole) { pickUp(b); continue; }
       let guard = 0;
@@ -238,7 +258,7 @@ export function finishRoundHeadless(g: Game, grp: Group): void {
     }
     grp.busySec = 0; grp.current = null; grp.path = [];
     finishHole(g, grp);
-    if (grp.phase === 'toClubhouse') endRound(g, grp);
+    if ((grp.phase as GroupPhase) === 'toClubhouse') endRound(g, grp);
   }
 }
 

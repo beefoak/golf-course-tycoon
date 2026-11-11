@@ -32,6 +32,7 @@ export function importSaveFile(store: SaveStore): Promise<{ ok: true; name: stri
       const hr = readHeader(bytes);
       if (!hr.ok) return resolve({ ok: false, reason: hr.reason });
       const name = f.name.replace(/\.gctsave$/i, '') || 'imported';
+      if ((await store.list()).some(m => m.name === name) && !confirm(`A save named "${name}" exists. Overwrite it?`)) return resolve(null);
       await store.put(name, bytes);
       resolve({ ok: true, name });
     };
@@ -44,12 +45,12 @@ function when(t: number): string {
 }
 
 /** Slot list rows shared by the in-game panel and the new-game screen. */
-export function saveRows(store: SaveStore, list: SaveMeta[], onChange: () => void): HTMLElement[] {
+export function saveRows(store: SaveStore, list: SaveMeta[], onChange: () => void, inGame = false): HTMLElement[] {
   return list.map(m => h('div', { class: 'row', style: 'gap:6px;align-items:center' },
     h('span', { style: 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' },
       h('b', null, m.name === AUTOSAVE ? '⟳ autosave' : m.name),
       h('div', { class: 'muted', style: 'font-size:11px' }, `Day ${m.day} · ${money(m.cash)} · ${when(m.savedAt)}`)),
-    h('button', { class: 'btn', title: 'Load', onclick: () => loadSlot(m.name) }, 'Load'),
+    h('button', { class: 'btn', title: 'Load', onclick: () => { if (!inGame || confirm(`Load "${m.name}"? Unsaved progress in this game will be lost.`)) loadSlot(m.name); } }, 'Load'),
     h('button', { class: 'btn', title: 'Export to file', onclick: async () => { const b = await store.get(m.name); if (b) downloadSave(m.name, b); } }, '⇩'),
     h('button', { class: 'btn', title: 'Delete', onclick: async () => { if (confirm(`Delete save "${m.name}"?`)) { await store.delete(m.name); onChange(); } } }, '✕')));
 }
@@ -61,7 +62,7 @@ export function savePanel(g: Game, store: SaveStore): HTMLElement {
   const listEl = h('div', null, h('div', { class: 'muted' }, 'Loading…'));
   const refresh = async () => {
     const list = await store.list();
-    listEl.replaceChildren(...(list.length ? saveRows(store, list, () => void refresh()) : [h('div', { class: 'muted' }, 'No saves yet.')]));
+    listEl.replaceChildren(...(list.length ? saveRows(store, list, () => void refresh(), true) : [h('div', { class: 'muted' }, 'No saves yet.')]));
   };
   const save = async () => {
     const n = name.value.trim();

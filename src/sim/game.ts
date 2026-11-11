@@ -190,6 +190,7 @@ export class Game {
         return placeBuilding(this, c.kind, c.courseId, c.origin);
       case 'setGreenFee': {
         if (!this.courses.get(c.courseId)) return fail('No such course');
+        if (!Number.isInteger(c.holes) || c.holes < 1 || c.holes > 36) return fail('Round length must be 1–36 holes');
         if (!(c.fee >= 0) || c.fee > 1000) return fail('Fee must be between $0 and $1,000');
         const p = this.pricing.get(c.courseId) ?? { greenFee: {} };
         p.greenFee[c.holes] = Math.round(c.fee);

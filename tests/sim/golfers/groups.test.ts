@@ -1,4 +1,4 @@
-import { createGroup } from '../../../src/sim/golfers/groups';
+import { createGroup, finishRoundHeadless } from '../../../src/sim/golfers/groups';
 import { spawnGolfers, threeHoleCourse } from './courseFixture';
 
 function runUntil(g: ReturnType<typeof threeHoleCourse>['g'], done: () => boolean, maxTicks = 40000): number {
@@ -71,4 +71,47 @@ test('groups still out at the end of the day finish headless', () => {
   runUntil(g, () => g.day > day);
   expect(rounds).toBe(1);
   expect(g.groups.length).toBe(0);
+});
+
+test('a hole closed (and stripped) after booking is skipped, not played', () => {
+  const { g, course, holes } = threeHoleCourse();
+  const played: number[] = [];
+  let rounds = 0;
+  g.events.on('holeComplete', e => played.push(e.holeId));
+  g.events.on('roundComplete', () => rounds++);
+  const grp = createGroup(g, course.id, spawnGolfers(g, 4), g.day, g.clock.minuteOfDay + 1);
+  runUntil(g, () => grp.started);
+  const r = g.dispatch({ t: 'closeHole', holeId: holes[1]!.id });
+  expect(r.ok).toBe(true);
+  runUntil(g, () => holes[1]!.state === 'closed', 600);
+  expect(holes[1]!.state).toBe('closed');
+  expect(grp.holeIdx).toBe(0);
+  holes[1]!.teeBoxes = [];
+  expect(() => runUntil(g, () => rounds > 0)).not.toThrow();
+  expect(rounds).toBe(1);
+  expect(played).toEqual([holes[0]!.id, holes[2]!.id]);
+});
+
+test('a group whose every hole closed before tee-off ends its round without playing', () => {
+  const { g, course, holes } = threeHoleCourse();
+  let rounds = 0, played = 0;
+  g.events.on('roundComplete', () => rounds++);
+  g.events.on('holeComplete', () => played++);
+  createGroup(g, course.id, spawnGolfers(g, 2), g.day, g.clock.minuteOfDay + 5);
+  for (const h of holes) expect(g.dispatch({ t: 'closeHole', holeId: h.id }).ok).toBe(true);
+  expect(() => runUntil(g, () => rounds > 0, 2000)).not.toThrow();
+  expect(rounds).toBe(1);
+  expect(played).toBe(0);
+});
+
+test('headless finish of a group walking back to the clubhouse', () => {
+  const { g, course } = threeHoleCourse();
+  const grp = createGroup(g, course.id, spawnGolfers(g, 4), g.day, g.clock.minuteOfDay + 1);
+  runUntil(g, () => grp.phase === 'toClubhouse');
+  expect(grp.phase).toBe('toClubhouse');
+  let rounds = 0;
+  g.events.on('roundComplete', () => rounds++);
+  expect(() => finishRoundHeadless(g, grp)).not.toThrow();
+  expect(grp.phase).toBe('done');
+  expect(rounds).toBe(1);
 });

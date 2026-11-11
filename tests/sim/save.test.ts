@@ -21,6 +21,7 @@ const fingerprint = (g: Game) => JSON.stringify({
   golfers: [...g.golfers.all.values()].map(x => [x.id, x.opinion, x.visits]),
   time: g.clock.save(),
   thoughts: g.thoughts.length,
+  roundThoughts: [...g.roundThoughts],
 });
 
 test('round-trip is deterministic', () => {
@@ -102,3 +103,21 @@ test('full-size save under 8 MB compressed', () => {
     expect(r.value.parcels.price).toEqual(g.parcels.price);
   }
 }, 30000);
+
+test('thoughts collected mid-round survive a load', () => {
+  const { g, course } = threeHoleCourse();
+  addClubhouse(g, course);
+  g.dispatch({ t: 'setGreenFee', courseId: course.id, holes: 3, fee: 6 });
+  const live = () => [...g.roundThoughts].some(([id, l]) => l.length > 0 && g.groups.some(x => x.id === id && x.phase !== 'done'));
+  let n = 0;
+  while (!live() && n++ < 200000) g.tick();
+  expect(live()).toBe(true);
+  const r = deserialize(serialize(g));
+  expect(r.ok).toBe(true);
+  const g2 = (r as { ok: true; value: Game }).value;
+  const end = g.day + 2;
+  while (g.day < end) { g.tick(); g2.tick(); }
+  expect(fingerprint(g2)).toBe(fingerprint(g));
+  expect(g2.thoughts).toEqual(g.thoughts);
+  expect([...g2.golfers.all.values()].map(x => x.lastSatisfaction)).toEqual([...g.golfers.all.values()].map(x => x.lastSatisfaction));
+});

@@ -156,7 +156,14 @@ async function startGame(game: Game): Promise<void> {
 
   let hudTimer = 0;
   app.ticker.add(t => {
-    loop.advance(Math.min(t.deltaMS, 250));
+    try {
+      loop.advance(Math.min(t.deltaMS, 250));
+    } catch (e) {
+      // a sim bug must not kill the ticker: pause and tell the player instead
+      loop.speed = 0;
+      console.error(e);
+      game.notify('bad', `Simulation error — game paused (${(e as Error).message}). Save your game and report this.`);
+    }
     const speed = (700 / camera.pxPerTile) * (t.deltaMS / 1000);
     if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].some(k => keys.has(k))) follow.target = null;
     follow.update(camera, game);

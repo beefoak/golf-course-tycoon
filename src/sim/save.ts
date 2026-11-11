@@ -144,7 +144,7 @@ export function deserialize(bytes: Uint8Array): Result<Game> {
   for (let v = h.version; v < SAVE_VERSION; v++) {
     const m = MIGRATIONS[v];
     if (!m) return fail(`No migration from save version ${v}`);
-    h = m(h);
+    h = { ...m(h), version: v + 1 };
   }
   const get = <T extends Typed>(r: BufRef): T => {
     const d = h.buffers[r.$buf]!;

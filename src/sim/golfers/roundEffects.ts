@@ -22,14 +22,13 @@ function pushThought(g: Game, t: Thought, roundThoughts: Thought[]): void {
 
 /** Thoughts after each hole, stats, and opinion changes at the end of the round. */
 export function attachRoundEffects(g: Game): void {
-  const perGroup = g.roundThoughts;
   g.events.on('holeComplete', ({ groupId, holeId, results }) => {
     const grp = g.groups.find(x => x.id === groupId);
     const hole = g.courses.hole(holeId);
     if (!grp || !hole) return;
     const waited = grp.waitingMin - grp.holeWaitStart;
-    const list = perGroup.get(groupId) ?? [];
-    perGroup.set(groupId, list);
+    const list = g.roundThoughts.get(groupId) ?? [];
+    g.roundThoughts.set(groupId, list);
     const stats = statsFor(g, grp.courseId);
     stats.recordHoleTime(g.day, holeId, g.clock.absMinute - grp.holeStartAbsMin);
     const par = holePar(hole);
@@ -48,8 +47,8 @@ export function attachRoundEffects(g: Game): void {
   });
   g.events.on('roundComplete', ({ groupId }) => {
     const grp = g.groups.find(x => x.id === groupId);
-    const list = perGroup.get(groupId) ?? [];
-    perGroup.delete(groupId);
+    const list = g.roundThoughts.get(groupId) ?? [];
+    g.roundThoughts.delete(groupId);
     if (!grp) return;
     statsFor(g, grp.courseId).recordRound(g.day, g.clock.absMinute - grp.startAbsMin);
     for (const id of grp.golferIds) {
