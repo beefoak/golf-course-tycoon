@@ -1,5 +1,7 @@
 import { MAP_TILES, PARCEL_TILES } from '../../core/units';
 
+export const TILE_FLAG = { stripe: 1, disease: 2 } as const;
+
 /** Struct-of-arrays tile store. Chunk = one parcel (50×50 tiles). */
 export class World {
   readonly size: number;
@@ -15,6 +17,14 @@ export class World {
   wear: Uint8Array;
   firmness: Uint8Array;
   mowHeight: Uint16Array;
+  /** 0..100 organic layer under the turf */
+  thatch: Uint8Array;
+  /** bit flags: TILE_FLAG.* */
+  flags: Uint8Array;
+  /** last game day the tile was rolled / aerated / fertilized (0 = never) */
+  rolledDay: Uint16Array;
+  aeratedDay: Uint16Array;
+  fedDay: Uint16Array;
   holeId: Uint16Array;
   courseId: Uint8Array;
   private dirtyFlags: Uint8Array;
@@ -35,6 +45,11 @@ export class World {
     this.wear = new Uint8Array(n);
     this.firmness = new Uint8Array(n);
     this.mowHeight = new Uint16Array(n);
+    this.thatch = new Uint8Array(n);
+    this.flags = new Uint8Array(n);
+    this.rolledDay = new Uint16Array(n);
+    this.aeratedDay = new Uint16Array(n);
+    this.fedDay = new Uint16Array(n);
     this.holeId = new Uint16Array(n);
     this.courseId = new Uint8Array(n);
     this.dirtyFlags = new Uint8Array(this.chunksPerSide * this.chunksPerSide);

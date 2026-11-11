@@ -22,7 +22,7 @@ const registry = saveRegistry;
 /** Upgrades a header from version v to v + 1. */
 export const MIGRATIONS: Record<number, (json: SaveHeader) => SaveHeader> = {};
 
-const WORLD_FIELDS = ['elevation', 'surface', 'feature', 'treeSpecies', 'treeAgeDays', 'grass', 'health', 'moisture', 'wear', 'firmness', 'mowHeight', 'holeId', 'courseId'] as const;
+const WORLD_FIELDS = ['elevation', 'surface', 'feature', 'treeSpecies', 'treeAgeDays', 'grass', 'health', 'moisture', 'wear', 'firmness', 'mowHeight', 'holeId', 'courseId', 'thatch', 'flags', 'rolledDay', 'aeratedDay', 'fedDay'] as const;
 
 type Typed = Float32Array | Uint8Array | Uint16Array | Int32Array;
 const CTORS = { Float32Array, Uint8Array, Uint16Array, Int32Array } as const;
@@ -149,7 +149,8 @@ export function deserialize(bytes: Uint8Array): Result<Game> {
   };
   try {
     const world = new World(h.options.size);
-    for (const f of WORLD_FIELDS) (world[f] as Typed).set(get(h.world[f]));
+    // fields added after a save was written stay zero
+    for (const f of WORLD_FIELDS) if (h.world[f]) (world[f] as Typed).set(get(h.world[f]));
     world.markAllDirty();
     const g = Game.fromSave(h.options, world);
     g.clock.load(h.clock);

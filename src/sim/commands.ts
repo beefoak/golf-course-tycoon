@@ -31,6 +31,7 @@ export type Command =
   | { t: 'reopenHole'; holeId: number; method?: GrowMethod }
   | { t: 'placeBuilding'; kind: BuildingKind; courseId: number; origin: Vec2 }
   | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }
+  | { t: 'applyPractice'; practice: import('./turf/practices').Practice; tiles: number[]; opts?: import('./turf/practices').PracticeOpts }
   | { t: 'placePump'; at: Vec2; tier: 1 | 2 | 3 }
   | { t: 'placeSprinkler'; at: Vec2; zone: number }
   | { t: 'removeSprinkler'; id: number }

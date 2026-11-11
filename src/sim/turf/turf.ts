@@ -7,6 +7,7 @@ import { registerSaveable } from '../saveRegistry';
 import { isTurfSurface, Surface } from '../world/tiles';
 import { TERRAINS } from '../world/terrainTypes';
 import { ambientMoisture } from './weather';
+import { practiceModifier, recentlyAerated } from './practices';
 import { defaultGrass, Grass, grassSpec, seasonalGrowth } from './grasses';
 
 /** Per-course mowing and conditioning targets (holes may override). */
@@ -25,11 +26,11 @@ export const DEFAULT_TURF: TurfSettings = { greenMowMm: 3.6, teeMowMm: 10, fairw
 export interface TurfState {
   settings: Map<number, TurfSettings>;
   holeOverrides: Map<number, Partial<TurfSettings>>;
-  /** Until the maintenance program (Task 31) exists, course turf is mown to target each night. */
-  autoMow: boolean;
+  /** Until the maintenance program (Task 31) exists, course turf is mown and bunkers raked each night. */
+  autoCare: boolean;
 }
 export function newTurfState(): TurfState {
-  return { settings: new Map(), holeOverrides: new Map(), autoMow: true };
+  return { settings: new Map(), holeOverrides: new Map(), autoCare: true };
 }
 
 export function turfSettings(g: Game, courseId: number, holeId = 0): TurfSettings {
@@ -93,7 +94,7 @@ export function greenStimpFromTurf(g: Game, holeId: number): number {
   for (const i of greens) {
     const gr = w.grass[i] as Grass;
     if (gr === Grass.None) continue;
-    sum += stimpFor(gr, w.mowHeight[i]! / 10, w.health[i]!, w.moisture[i]!, false);
+    sum += stimpFor(gr, w.mowHeight[i]! / 10, w.health[i]!, w.moisture[i]!, w.rolledDay[i] === g.day) - (recentlyAerated(g, i) ? 1.5 : 0);
     n++;
   }
   return n ? sum / n : 10;
@@ -186,17 +187,18 @@ export const turfSystem: System = {
       let wr = wearA[i]!;
       if (wr) { wr = Math.max(0, wr - sround(wearK[gr]! * (0.5 + h / 200), i + 2, tick)); wearA[i] = wr; }
       // health
-      const target = healthTarget(fitK[gr]!, m2, wr, mh / 10, minMow[gr]!);
+      const target = Math.max(0, Math.min(100, healthTarget(fitK[gr]!, m2, wr, mh / 10, minMow[gr]!) + practiceModifier(g, i)));
       if (target > h) h = Math.min(target, h + sround(up, i + 3, tick));
       else if (target < h) h = Math.max(target, h - sround(down, i + 3, tick));
       health[i] = h;
     }
   },
   onDay(g) {
-    if (!g.turf.autoMow) return;
+    if (!g.turf.autoCare) return;
     const w = g.world;
     for (let i = 0; i < w.grass.length; i++) {
       const cid = w.courseId[i]!;
+      if (w.surface[i] === Surface.Bunker) { if (g.parcels.tileOwned(i % w.size, Math.floor(i / w.size))) w.health[i] = 100; continue; }
       if (!cid || w.grass[i] === Grass.None) continue;
       const t = mowTargetMm(turfSettings(g, cid, w.holeId[i]!), w.surface[i] as Surface);
       if (t === null || w.mowHeight[i]! <= t * 10) continue;
@@ -244,7 +246,7 @@ export function attachTurf(g: Game): void {
     const climate = TERRAINS[g.terrain].climate;
     for (const i of tiles) {
       const s = w.surface[i] as Surface;
-      if (!isTurfSurface(s)) { w.grass[i] = Grass.None; continue; }
+      if (!isTurfSurface(s)) { w.grass[i] = Grass.None; if (s === Surface.Bunker) w.health[i] = 100; continue; }
       if (w.grass[i] !== Grass.None) continue;
       w.grass[i] = defaultGrass(climate, s);
       w.health[i] = 75;
@@ -257,9 +259,9 @@ export function attachTurf(g: Game): void {
 
 registerSaveable({
   key: 'turf',
-  save: g => ({ settings: [...g.turf.settings], holeOverrides: [...g.turf.holeOverrides], autoMow: g.turf.autoMow }),
+  save: g => ({ settings: [...g.turf.settings], holeOverrides: [...g.turf.holeOverrides], autoCare: g.turf.autoCare }),
   load: (g, d) => {
-    const s = d as { settings: [number, TurfSettings][]; holeOverrides: [number, Partial<TurfSettings>][]; autoMow: boolean };
-    g.turf = { settings: new Map(s.settings), holeOverrides: new Map(s.holeOverrides), autoMow: s.autoMow };
+    const s = d as { settings: [number, TurfSettings][]; holeOverrides: [number, Partial<TurfSettings>][]; autoCare: boolean };
+    g.turf = { settings: new Map(s.settings), holeOverrides: new Map(s.holeOverrides), autoCare: s.autoCare };
   },
 });

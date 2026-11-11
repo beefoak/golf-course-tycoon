@@ -5,6 +5,8 @@ import { Golfer, Segment } from './golfer';
 import { greenStimp } from './greenSpeed';
 import { HoleResult } from './hole';
 import { holeCondition } from '../turf/turf';
+import { UNRAKED_BELOW, bunkerQuality } from '../turf/practices';
+import { lieAt } from './lie';
 
 export type ThoughtKey =
   | 'greenFast' | 'greenSlow' | 'waited' | 'lostBall' | 'water' | 'beautifulView' | 'tooHard' | 'tooEasy'
@@ -65,6 +67,7 @@ export function evaluateHoleThoughts(g: Game, golfer: Golfer, hole: Hole, result
   if (golfer.traits.challenge > 0.75 && !result.pickedUp && result.strokes <= par && par >= 4 && longestYards(hole) < 300) add('tooEasy');
   const condition = holeCondition(g, hole.id);
   if (condition !== null && condition < 45) add('poorCondition');
+  if (result.shots.some(s => lieAt(g.world, s.from) === 'bunker' && bunkerQuality(g, s.from.x, s.from.y) < UNRAKED_BELOW)) add('bunkerUnraked');
   if (result.putts >= 3 && stimp > 11) add('greenFast');
   if (result.putts >= 3 && stimp < 8) add('greenSlow');
   if (golfer.traits.aesthetics > 0.6 && hole.stakes.red.length + hole.stakes.yellow.length > 0 && g.rng.chance(0.25 * golfer.traits.aesthetics)) add('beautifulView');

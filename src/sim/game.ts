@@ -17,6 +17,7 @@ import { attachDemand } from './golfers/demand';
 import { attachRoundEffects } from './golfers/roundEffects';
 import { attachTurf, newTurfState, setGrass, TurfState } from './turf/turf';
 import { attachWeather, WeatherState } from './turf/weather';
+import { practiceCommand, practicesSystem } from './turf/practices';
 import { attachIrrigation, IrrigationSystem, newIrrigation, placePipe, placePump, placeSprinkler, removeSprinkler, repairSprinkler, setSchedule } from './turf/irrigation';
 import type { CourseStats } from './golfers/stats';
 import type { Thought } from './golfers/thoughts';
@@ -137,6 +138,7 @@ export class Game {
     attachRoundEffects(g);
     attachTurf(g);
     attachIrrigation(g);
+    g.registerSystem(practicesSystem);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }
@@ -200,6 +202,8 @@ export class Game {
         return placeStructure(this, c.kind, c.at);
       case 'placeBuilding':
         return placeBuilding(this, c.kind, c.courseId, c.origin);
+      case 'applyPractice':
+        return practiceCommand(this, c.practice, c.tiles, c.opts);
       case 'placePump':
         return placePump(this, c.at, c.tier);
       case 'placeSprinkler':

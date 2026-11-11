@@ -11,6 +11,7 @@ import { ClubId } from './clubs';
 import { Golfer } from './golfer';
 import { greenStimp } from './greenSpeed';
 import { addWear } from '../turf/turf';
+import { bunkerEntry } from '../turf/practices';
 import { Lie, lieAt } from './lie';
 import { putt } from './putting';
 import { simulateShot } from './shot';
@@ -156,6 +157,7 @@ export function playStroke(g: Game, golfer: Golfer, hole: Hole, p: HolePlay, rng
     r.penalties += penalty;
     p.strokes += penalty;
     rec = { from: p.pos, landing: out.landing, final: out.final, club: plan.club.id, result: out.result, penalty, next };
+    if (out.result === 'ok') bunkerEntry(g, next.x, next.y);
   }
   r.shots.push(rec);
   p.pos = rec.next;

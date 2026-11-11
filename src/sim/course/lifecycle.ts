@@ -3,6 +3,18 @@ import { computeStakes } from '../construction/hazards';
 import type { Game, System } from '../game';
 import { Surface } from '../world/tiles';
 import { validateHole } from './validate';
+import { holeTiles } from '../turf/turf';
+
+/** New turf only knits in when the soil is moist enough. */
+export const GROW_IN_MIN_MOISTURE = 40;
+
+export function holeMoisture(g: Game, holeId: number): number {
+  const tiles = holeTiles(g, holeId).turf;
+  if (!tiles.length) return 100;
+  let s = 0;
+  for (const i of tiles) s += g.world.moisture[i]!;
+  return s / tiles.length;
+}
 
 export type GrowMethod = 'seed' | 'sod';
 export const GROW_IN_DAYS: Record<GrowMethod, number> = { seed: 21, sod: 3 };
@@ -64,6 +76,10 @@ export const lifecycleSystem: System = {
   onDay(g) {
     for (const c of g.courses.list) for (const h of c.holes) {
       if (h.state !== 'growingIn') continue;
+      if (holeMoisture(g, h.id) < GROW_IN_MIN_MOISTURE) {
+        g.notify('warn', `${h.name} is too dry to grow in — irrigate or hand-water it`, h.greenCenter);
+        continue;
+      }
       h.growInDaysLeft = Math.max(0, h.growInDaysLeft - 1);
       if (h.growInDaysLeft === 0) {
         h.state = 'open';
