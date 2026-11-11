@@ -9,6 +9,7 @@ import { Ledger } from './economy/ledger';
 import { ParcelGrid } from './land/parcels';
 import { commitPlan } from './construction/plan';
 import { planSurfacePaint } from './construction/paint';
+import { planTerrain } from './construction/terrain';
 import { generateWorld } from './world/mapgen';
 import { TerrainType } from './world/terrainTypes';
 import { World } from './world/world';
@@ -93,6 +94,8 @@ export class Game {
         return this.parcels.sell(c.px, c.py, this.ledger, this.day, this.sellBlockedReason(c.px, c.py));
       case 'paint':
         return commitPlan(this, planSurfacePaint(this, c.tiles, c.surface), 'construction');
+      case 'terrain':
+        return commitPlan(this, planTerrain(this, c.tiles, c.op), 'earthworks');
       default:
         return fail(`Unknown command ${(c as { t: string }).t}`);
     }
