@@ -13,9 +13,10 @@ export type CourseCommand =
   | { t: 'moveTeeBox'; holeId: number; kind: TeeKind; center: Vec2 }
   | { t: 'removeTeeBox'; holeId: number; kind: TeeKind }
   | { t: 'setPins'; holeId: number; pins: Vec2[] }
-  | { t: 'setActivePin'; holeId: number; index: number };
+  | { t: 'setActivePin'; holeId: number; index: number }
+  | { t: 'setPinMode'; holeId: number; mode: 'auto' | 'manual' };
 
-const COURSE_COMMANDS = new Set<string>(['createCourse', 'renumberHoles', 'renameHole', 'setPar', 'addTeeBox', 'moveTeeBox', 'removeTeeBox', 'setPins', 'setActivePin']);
+const COURSE_COMMANDS = new Set<string>(['createCourse', 'renumberHoles', 'renameHole', 'setPar', 'addTeeBox', 'moveTeeBox', 'removeTeeBox', 'setPins', 'setActivePin', 'setPinMode']);
 export function isCourseCommand(c: { t: string }): c is CourseCommand {
   return COURSE_COMMANDS.has(c.t);
 }
@@ -76,6 +77,10 @@ export function handleCourseCommand(g: Game, c: CourseCommand): Result<unknown> 
     case 'setActivePin':
       if (c.index < 0 || c.index >= h.pins.length) return fail('No such pin position');
       h.activePin = c.index;
+      return ok(undefined);
+    case 'setPinMode':
+      if (c.mode !== 'auto' && c.mode !== 'manual') return fail('Pin mode is auto or manual');
+      h.pinMode = c.mode;
       return ok(undefined);
   }
 }

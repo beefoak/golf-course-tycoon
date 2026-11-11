@@ -146,3 +146,16 @@ test('zone assignment restricts who takes an order', () => {
 test('hole ranges read naturally', () => {
   expect(holeRanges([10, 11, 12, 1, 2, 3, 7, 18, 17, 16, 15, 14, 13])).toBe('1–3, 7, 10–18');
 });
+
+test('a crew hired mid-day gets today’s plan within a few minutes, once', () => {
+  const { g, courseId } = blockCourse(2);
+  for (let k = 0; k < 10 * 10; k++) g.tick();
+  expect(g.workOrders.all.length).toBe(0);
+  hire(g, 'greenkeeper', courseId);
+  for (let k = 0; k < 6 * 10; k++) g.tick();
+  const today = g.workOrders.all.filter(o => o.due === g.day);
+  expect(today.length).toBeGreaterThan(0);
+  expect(today.some(o => o.status === 'assigned')).toBe(true);
+  for (let k = 0; k < 30 * 10; k++) g.tick();
+  expect(g.workOrders.all.filter(o => o.due === g.day).length).toBe(today.length);
+});

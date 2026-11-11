@@ -8,6 +8,7 @@ export interface ProgramRule {
   practice: Practice;
   surface: Surface;
   frequency: { perWeek: number };
+  /** mow to this height instead of the course/hole turf setting */
   params?: { mowMm?: number };
   /** 1 = basics the crew always does */
   priority: 1 | 2 | 3;
@@ -20,9 +21,9 @@ const PER_YEAR = (n: number) => n / 16;
 
 export function defaultRules(): ProgramRule[] {
   return [
-    { practice: 'mow', surface: Surface.Green, frequency: { perWeek: 7 }, params: { mowMm: 3.0 }, priority: 1 },
+    { practice: 'mow', surface: Surface.Green, frequency: { perWeek: 7 }, priority: 1 },
     { practice: 'changeCup', surface: Surface.Green, frequency: { perWeek: 7 }, priority: 1 },
-    { practice: 'mow', surface: Surface.Fairway, frequency: { perWeek: 3 }, params: { mowMm: 12 }, priority: 1 },
+    { practice: 'mow', surface: Surface.Fairway, frequency: { perWeek: 3 }, priority: 1 },
     { practice: 'rakeBunker', surface: Surface.Bunker, frequency: { perWeek: 7 }, priority: 2 },
     { practice: 'roll', surface: Surface.Green, frequency: { perWeek: 3 }, priority: 2 },
     { practice: 'mow', surface: Surface.Tee, frequency: { perWeek: 3 }, priority: 2 },

@@ -4,7 +4,10 @@ import { validateHole } from '../../sim/course/validate';
 import { holePar, longestYards, suggestPar, teeYards } from '../../sim/course/yardage';
 import { Command } from '../../sim/commands';
 import { Game } from '../../sim/game';
+import { GRASSES, Grass } from '../../sim/turf/grasses';
+import { greenStimpFromTurf, holeCondition, holeTiles, turfSettings } from '../../sim/turf/turf';
 import { h, money } from '../dom';
+import { INPUT_STYLE } from '../tools/panelTool';
 
 export interface HolePanelActions {
   placeTee(kind: TeeKind): void;
@@ -67,7 +70,12 @@ export function holePanel(g: Game, holeId: number, a: HolePanelActions): HTMLEle
     a.placingTee() ? h('div', { class: 'warnline' }, `Click the map to place the ${a.placingTee()} tee (Esc cancels)`) : null,
     h('label', null, `Pin positions (${ho.pins.length})`),
     pins,
+    h('div', { style: 'display:flex;gap:3px;margin-top:3px' },
+      h('span', { class: 'muted', style: 'align-self:center' }, 'Pin sheet'),
+      h('button', { class: `btn${ho.pinMode !== 'manual' ? ' on' : ''}`, title: 'The crew moves the cup each morning', onclick: () => run({ t: 'setPinMode', holeId, mode: 'auto' }) }, 'Auto'),
+      h('button', { class: `btn${ho.pinMode === 'manual' ? ' on' : ''}`, title: 'The pin stays where you set it', onclick: () => run({ t: 'setPinMode', holeId, mode: 'manual' }) }, 'Manual')),
     h('button', { class: 'btn', style: 'margin-top:4px', onclick: a.openGreenTool }, 'Shape green / place pins…'),
+    turfSection(g, holeId, run),
     h('label', null, 'Checks'),
     v.errors.length || v.warnings.length
       ? h('div', null, ...v.errors.map(e => h('div', { class: 'errline' }, `✗ ${e}`)), ...v.warnings.map(w => h('div', { class: 'warnline' }, `! ${w}`)))
@@ -81,4 +89,44 @@ export function holePanel(g: Game, holeId: number, a: HolePanelActions): HTMLEle
       h('button', { class: 'btn', onclick: () => run({ t: 'refreshStakes', holeId }, 'Stakes refreshed') }, 'Refresh stakes')),
     ho.state === 'closed' && ho.editedSinceClose ? h('div', { class: 'muted' }, 'Edited since closing — needs a grow-in before reopening.') : null,
   );
+}
+
+/** Grass on the green, live speed and condition, and per-hole turf overrides. */
+function turfSection(g: Game, holeId: number, run: (c: Command, okText?: string) => void): HTMLElement {
+  const ho = g.courses.hole(holeId)!;
+  const w = g.world;
+  const greens = holeTiles(g, holeId).green;
+  const count = new Map<Grass, number>();
+  for (const i of greens) count.set(w.grass[i] as Grass, (count.get(w.grass[i] as Grass) ?? 0) + 1);
+  const main = [...count.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? Grass.None;
+  const base = turfSettings(g, ho.courseId);
+  const over = g.turf.holeOverrides.get(holeId) ?? {};
+  const cond = holeCondition(g, holeId);
+  const grassSel = h('select', { style: INPUT_STYLE, title: 'Re-grass the green (sod, needs the hole closed)',
+    onchange: (e: Event) => {
+      const gr = Number((e.target as HTMLSelectElement).value) as Grass;
+      run({ t: 'setGrass', tiles: greens.map(i => ({ x: i % w.size, y: Math.floor(i / w.size) })), grass: gr, method: 'sod' }, 'Green re-grassed');
+    } },
+    main === Grass.None ? h('option', { value: '0', selected: true }, '—') : null,
+    ...(Object.keys(GRASSES).map(Number) as Exclude<Grass, Grass.None>[]).map(k => h('option', { value: String(k), selected: k === main }, GRASSES[k].name)));
+  const field = (key: 'greenMowMm' | 'greenStimpTarget', text: string, step: number) => h('div', { class: 'row' },
+    h('span', { class: 'muted' }, text),
+    h('input', { type: 'number', step, value: over[key] ?? '', placeholder: String(base[key]), style: `width:60px;${INPUT_STYLE}`,
+      onchange: (e: Event) => {
+        const v = (e.target as HTMLInputElement).value;
+        if (v === '') {
+          const rest = { ...over };
+          delete rest[key];
+          run({ t: 'setTurfSettings', courseId: ho.courseId, holeId, settings: null });
+          if (Object.keys(rest).length) run({ t: 'setTurfSettings', courseId: ho.courseId, holeId, settings: rest });
+        } else run({ t: 'setTurfSettings', courseId: ho.courseId, holeId, settings: { [key]: Number(v) } });
+      } }));
+  return h('div', null,
+    h('label', null, 'Turf'),
+    greens.length ? h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Green grass'), grassSel) : null,
+    greens.length ? h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Green speed'), h('span', null, `${greenStimpFromTurf(g, holeId).toFixed(1)} ft (target ${over.greenStimpTarget ?? base.greenStimpTarget})`)) : null,
+    cond !== null ? h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Condition'), h('span', { style: cond < 45 ? 'color:var(--warn)' : '' }, `${Math.round(cond)}/100`)) : null,
+    field('greenMowMm', 'Green height mm', 0.1),
+    field('greenStimpTarget', 'Stimp target', 0.5),
+    h('div', { class: 'muted' }, 'Blank = course setting (Program → Turf targets).'));
 }

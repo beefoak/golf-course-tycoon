@@ -1,4 +1,4 @@
-import { Result, fail } from '../../core/result';
+import { Result, fail, ok } from '../../core/result';
 import { Vec2 } from '../../core/geom';
 import { addReason, commitPlan, emptyPlan, EditPlan } from '../construction/plan';
 import { editableTile } from '../construction/paint';
@@ -31,6 +31,29 @@ export interface TurfState {
 }
 export function newTurfState(): TurfState {
   return { settings: new Map(), holeOverrides: new Map(), autoCare: false };
+}
+
+const SETTING_RANGE: Record<keyof TurfSettings, [number, number, string]> = {
+  greenMowMm: [2, 8, 'Green height'], teeMowMm: [6, 25, 'Tee height'], fairwayMowMm: [8, 30, 'Fairway height'], roughMowMm: [25, 120, 'Rough height'],
+  greenStimpTarget: [7, 14, 'Stimp target'], fairwayFirmnessTarget: [0, 100, 'Firmness target'],
+};
+
+/** Change a course's turf targets, or one hole's overrides (holeId set; null settings clear them). */
+export function setTurfSettings(g: Game, courseId: number, holeId: number | undefined, settings: Partial<TurfSettings> | null): Result {
+  for (const [k, v] of Object.entries(settings ?? {}) as [keyof TurfSettings, number][]) {
+    const r = SETTING_RANGE[k];
+    if (!r) return fail(`Unknown setting ${k}`);
+    if (!(typeof v === 'number' && v >= r[0] && v <= r[1])) return fail(`${r[2]} must be ${r[0]}–${r[1]}`);
+  }
+  if (holeId) {
+    if (!g.courses.hole(holeId)) return fail('No such hole');
+    if (!settings) g.turf.holeOverrides.delete(holeId);
+    else g.turf.holeOverrides.set(holeId, { ...(g.turf.holeOverrides.get(holeId) ?? {}), ...settings });
+    return ok(undefined);
+  }
+  if (!g.courses.get(courseId)) return fail('No such course');
+  g.turf.settings.set(courseId, { ...turfSettings(g, courseId), ...(settings ?? {}) });
+  return ok(undefined);
 }
 
 export function turfSettings(g: Game, courseId: number, holeId = 0): TurfSettings {

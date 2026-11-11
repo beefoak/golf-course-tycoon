@@ -9,8 +9,13 @@ import { HEAT_CELL } from '../sim/golfers/stats';
 import { Grass } from '../sim/turf/grasses';
 import { connectedSprinklers, forEachInRadius } from '../sim/turf/irrigation';
 
-export type OverlayId = 'elevation' | 'slope' | 'land' | 'traffic' | 'landing' | 'pace' | 'moisture' | 'irrigation';
-export const OVERLAY_LABELS: Record<OverlayId, string> = { elevation: 'Elevation', slope: 'Slope', land: 'Land', traffic: 'Traffic', landing: 'Landing zones', pace: 'Pace', moisture: 'Moisture', irrigation: 'Irrigation' };
+export type OverlayId = 'elevation' | 'slope' | 'land' | 'traffic' | 'landing' | 'pace' | 'moisture' | 'irrigation' | 'health' | 'wear' | 'mowHeight' | 'staffCoverage' | 'workOrders';
+export const OVERLAY_LABELS: Record<OverlayId, string> = {
+  elevation: 'Elevation', slope: 'Slope', land: 'Land', traffic: 'Traffic', landing: 'Landing zones', pace: 'Pace', moisture: 'Moisture', irrigation: 'Irrigation',
+  health: 'Turf health', wear: 'Wear', mowHeight: 'Mow height', staffCoverage: 'Crew coverage', workOrders: 'Work orders',
+};
+/** Overlays whose data moves during the day (redrawn every few seconds while shown). */
+export const LIVE_OVERLAYS = new Set<OverlayId>(['moisture', 'health', 'wear', 'mowHeight', 'staffCoverage', 'workOrders']);
 
 /** Linear ramp through colour stops, t in [0,1]. */
 export function ramp(stops: number[], t: number): number {
@@ -90,6 +95,58 @@ export const OVERLAYS: Record<OverlayId, (g: Game) => OverlayFn> = {
         case 4: return rgba(0xffffff, 255);
         default: return null;
       }
+    };
+  },
+  health: g => (x, y) => {
+    const i = g.world.idx(x, y);
+    if (g.world.grass[i] === Grass.None) return null;
+    return rgba(ramp([0x8a4a20, 0xe0c040, 0x30c050], g.world.health[i]! / 100), 150);
+  },
+  wear: g => (x, y) => {
+    const v = g.world.wear[g.world.idx(x, y)]!;
+    return v > 2 ? rgba(ramp([0xf0e080, 0xe08030, 0xa02020], v / 100), 60 + Math.round(v * 1.4)) : null;
+  },
+  mowHeight: g => (x, y) => {
+    const i = g.world.idx(x, y);
+    if (g.world.grass[i] === Grass.None || !g.world.courseId[i]) return null;
+    // short (greens) → long (rough), on a log-ish scale: 3, 10, 25, 60+ mm
+    const mm = g.world.mowHeight[i]! / 10;
+    return rgba(ramp([0x2040c0, 0x30b0d0, 0x60d060, 0xe0d040, 0xd06020], Math.log(Math.max(2, mm) / 2) / Math.log(40)), 150);
+  },
+  staffCoverage: g => {
+    // share of the last two days' planned labour actually done, per hole
+    const done = new Map<number, number>(), planned = new Map<number, number>();
+    for (const o of g.workOrders.all) {
+      if (!o.holeId || o.due < g.day - 1) continue;
+      planned.set(o.holeId, (planned.get(o.holeId) ?? 0) + o.laborHours);
+      const frac = o.status === 'done' ? 1 : o.tiles.length ? o.progress / o.tiles.length : 0;
+      done.set(o.holeId, (done.get(o.holeId) ?? 0) + o.laborHours * frac);
+    }
+    return (x, y) => {
+      const id = g.world.holeId[g.world.idx(x, y)];
+      if (!id) return null;
+      const p = planned.get(id);
+      if (!p) return rgba(0x808080, 70);
+      return rgba(ramp([0xe04030, 0xf0d040, 0x40d060], (done.get(id) ?? 0) / p), 120);
+    };
+  },
+  workOrders: g => {
+    // today's orders; a tile shows its worst state: red skipped > grey unassigned > blue to do > green done
+    const w = g.world;
+    const mask = new Uint8Array(w.size * w.size);
+    const rank = { done: 1, assigned: 2, open: 3, skipped: 4 } as const;
+    for (const o of g.workOrders.all) {
+      if (o.due !== g.day) continue;
+      for (let k = 0; k < o.tiles.length; k++) {
+        const i = o.tiles[k]!;
+        const r = o.status === 'assigned' && k < o.progress ? rank.done : rank[o.status];
+        if (r > mask[i]!) mask[i] = r;
+      }
+    }
+    const col = [0, rgba(0x40d060, 90), rgba(0x4080ff, 110), rgba(0xa0a0a0, 110), rgba(0xe04030, 130)];
+    return (x, y) => {
+      const m = mask[w.idx(x, y)]!;
+      return m ? col[m]! : null;
     };
   },
   land: g => (x, y) => {

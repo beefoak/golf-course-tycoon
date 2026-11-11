@@ -22,6 +22,8 @@ export interface Hole {
   greenCenter: Vec2;
   pins: Vec2[];
   activePin: number;
+  /** auto (default): the crew rotates the cup daily; manual: the pin stays where you put it */
+  pinMode?: 'auto' | 'manual';
   parOverride: number | null;
   strokeIndex: number | null;
   growInDaysLeft: number;

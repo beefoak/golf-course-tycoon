@@ -30,8 +30,13 @@ export interface WorkOrder {
   paused?: boolean;
 }
 
-export interface WorkOrderBook { all: WorkOrder[]; nextId: number }
-export function newOrderBook(): WorkOrderBook { return { all: [], nextId: 1 }; }
+export interface WorkOrderBook {
+  all: WorkOrder[];
+  nextId: number;
+  /** last day each course's orders were planned (courseId → day) */
+  plannedDay?: Record<number, number>;
+}
+export function newOrderBook(): WorkOrderBook { return { all: [], nextId: 1, plannedDay: {} }; }
 
 export const MAX_ORDER_TILES = 400;
 /** Fixed jobs per hole (hours). */
@@ -237,14 +242,26 @@ export const programSystem: System = {
     }
     // keep two days of history
     g.workOrders.all = g.workOrders.all.filter(o => o.due >= g.day - 1);
-    for (const c of g.courses.list) {
-      if (!c.holes.some(h => h.state === 'open' || h.state === 'growingIn' || h.state === 'closing')) continue;
-      if (!g.staff.all.some(s => s.courseId === c.id)) continue;
-      generateDailyOrders(g, c.id);
-      assignOrders(g, c.id);
-    }
+    planDay(g);
+  },
+  onMinute(g) {
+    // a crew hired (or a hole opened) mid-day gets today's plan straight away
+    if (g.clock.minuteOfDay % 5 === 0) planDay(g);
   },
 };
+
+/** Generate and assign today's orders for each course that has staff and live holes and no plan yet. */
+function planDay(g: Game): void {
+  const planned = (g.workOrders.plannedDay ??= {});
+  for (const c of g.courses.list) {
+    if (planned[c.id] === g.day) continue;
+    if (!c.holes.some(h => h.state === 'open' || h.state === 'growingIn' || h.state === 'closing')) continue;
+    if (!g.staff.all.some(s => s.courseId === c.id)) continue;
+    planned[c.id] = g.day;
+    generateDailyOrders(g, c.id);
+    assignOrders(g, c.id);
+  }
+}
 
 registerSaveable({
   key: 'workOrders',

@@ -29,6 +29,9 @@ import { GolferLayer } from './render/golfers';
 import { FollowCam } from './render/follow';
 import { StaffLayer } from './render/staff';
 import { crewMemberPanel } from './ui/panels/crewMemberPanel';
+import { staffTool } from './ui/panels/staffPanel';
+import { programTool } from './ui/panels/programPanel';
+import { LIVE_OVERLAYS } from './render/overlays';
 import { ThoughtBubbles } from './ui/bubbles';
 import { golferPanel } from './ui/panels/golferPanel';
 import { statsPanel } from './ui/panels/statsPanel';
@@ -131,6 +134,9 @@ async function startGame(game: Game): Promise<void> {
     showCrew();
     showCourse();
   }, 500);
+  // turf and crew overlays follow the sim
+  setInterval(() => { const o = overlayBar.current(); if (o && LIVE_OVERLAYS.has(o) && loop.speed > 0) overlayBar.refresh(); }, 3000);
+  game.events.on('day', () => overlayBar.refresh());
 
   // save / load (panel only) and autosave every AUTOSAVE_DAYS game days
   const saveTool: Tool = { id: 'save', label: 'Save', cursor: 'default', panel: () => savePanel(game, store) };
@@ -156,6 +162,8 @@ async function startGame(game: Game): Promise<void> {
     { make: () => clubhouseTool(game), hotkey: 'c' },
     { make: () => clubhouseTool(game, 'maintenance'), hotkey: 'm' },
     { make: () => irrigationTool(game), hotkey: 'i' },
+    { make: () => staffTool(game), hotkey: 'e' },
+    { make: () => programTool(game), hotkey: 'j' },
     { make: () => courseOwner, hotkey: 'o' },
     { make: () => saveTool, hotkey: 'v' },
   ]);
@@ -207,7 +215,7 @@ async function startGame(game: Game): Promise<void> {
     crew.update(camera, canvas.clientWidth, canvas.clientHeight, performance.now());
     bubbles.update(camera, canvas.clientWidth, canvas.clientHeight);
     ctx.tools.drawPreview();
-    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · M maintenance · I irrigation · O course · V save · click a golfer · Space pause');
+    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · M maintenance · I irrigation · E staff · J program · O course · V save · click a golfer or crew member · Space pause');
     hudTimer += t.deltaMS;
     if (hudTimer > 200) { hudTimer = 0; hud.refresh(); }
   });

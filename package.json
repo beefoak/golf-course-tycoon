@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:perf": "vitest run -c vitest.perf.config.ts"
   },
   "dependencies": {
     "fflate": "^0.8.2",
@@ -16,6 +17,7 @@
   "devDependencies": {
     "@types/node": "^22.20.5",
     "fake-indexeddb": "^6.2.8",
+    "happy-dom": "^15.11.7",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",

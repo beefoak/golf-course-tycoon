@@ -54,4 +54,5 @@ export type Command =
   | { t: 'placePipe'; tiles: Vec2[] }
   | { t: 'setIrrigationSchedule'; schedule: { zone: number; minutes: number }[] }
   | { t: 'setGrass'; tiles: Vec2[]; grass: number; method: 'seed' | 'sod' }
+  | { t: 'setTurfSettings'; courseId: number; holeId?: number; settings: Partial<import('./turf/turf').TurfSettings> | null }
   | CourseCommand;

@@ -29,7 +29,7 @@ export function applyPractice(g: Game, practice: Practice, tiles: number[], opts
   const day = g.day;
   if (practice === 'changeCup') {
     const h = opts.holeId ? g.courses.hole(opts.holeId) : undefined;
-    if (h && h.pins.length) h.activePin = (h.activePin + 1) % h.pins.length;
+    if (h && h.pins.length && h.pinMode !== 'manual') h.activePin = (h.activePin + 1) % h.pins.length;
     return;
   }
   if (practice === 'moveTeeMarkers') {

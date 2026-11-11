@@ -15,7 +15,7 @@ import { GolferPool } from './golfers/generate';
 import { Group, countGroupsOnHole, groupSystem } from './golfers/groups';
 import { attachDemand } from './golfers/demand';
 import { attachRoundEffects } from './golfers/roundEffects';
-import { attachTurf, newTurfState, setGrass, TurfState } from './turf/turf';
+import { attachTurf, newTurfState, setGrass, setTurfSettings, TurfState } from './turf/turf';
 import { attachWeather, WeatherState } from './turf/weather';
 import { practiceCommand, practicesSystem } from './turf/practices';
 import { StaffRoster, setShift, setWage, train } from './staff/staff';
@@ -273,6 +273,8 @@ export class Game {
         return setSchedule(this, c.schedule);
       case 'setGrass':
         return setGrass(this, c.tiles, c.grass, c.method);
+      case 'setTurfSettings':
+        return setTurfSettings(this, c.courseId, c.holeId, c.settings);
       case 'setGreenFee': {
         if (!this.courses.get(c.courseId)) return fail('No such course');
         if (!Number.isInteger(c.holes) || c.holes < 1 || c.holes > 36) return fail('Round length must be 1–36 holes');
