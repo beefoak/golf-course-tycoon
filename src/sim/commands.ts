@@ -5,6 +5,7 @@ import type { CourseCommand } from './course/courseCommands';
 import type { PenInput } from './course/pen';
 import type { SandType } from './construction/hazards';
 import type { PathTier, StructureKind } from './construction/paths';
+import type { GrowMethod } from './course/lifecycle';
 
 /** Every change to the sim goes through Game.dispatch(command). Later tasks add members. */
 export type Command =
@@ -23,4 +24,7 @@ export type Command =
   | { t: 'placeStructure'; kind: StructureKind; at: Vec2 }
   | { t: 'refreshStakes'; holeId: number }
   | { t: 'setStakeOverride'; holeId: number; kind: 'ob' | 'red' | 'yellow'; at: Vec2 }
+  | { t: 'startGrowIn'; holeId: number; method: GrowMethod }
+  | { t: 'closeHole'; holeId: number }
+  | { t: 'reopenHole'; holeId: number; method?: GrowMethod }
   | CourseCommand;

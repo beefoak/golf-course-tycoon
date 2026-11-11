@@ -13,6 +13,7 @@ import { planTerrain } from './construction/terrain';
 import { CourseRegistry } from './course/course';
 import { handleCourseCommand, isCourseCommand } from './course/courseCommands';
 import { commitPenHole } from './course/pen';
+import { attachLifecycle, closeHole, reopenHole, startGrowIn } from './course/lifecycle';
 import { computeStakes, planBunker, planDigWater, planFillWater, planRemoveTrees, planTrees } from './construction/hazards';
 import { Structure, placeStructure, planBridge, planPath } from './construction/paths';
 import { Surface } from './world/tiles';
@@ -79,8 +80,13 @@ export class Game {
   }
 
   static create(o: NewGameOptions): Game {
-    return new Game(o, generateWorld(o.seed, o.terrain, o.size));
+    const g = new Game(o, generateWorld(o.seed, o.terrain, o.size));
+    attachLifecycle(g);
+    return g;
   }
+
+  /** Number of golfer groups currently on a hole (replaced by the group system, Task 20). */
+  groupsOnHole: (holeId: number) => number = () => 0;
 
   get day(): number {
     return this.clock.day;
@@ -125,6 +131,12 @@ export class Game {
         return commitPlan(this, planBridge(this, c.tiles), 'construction');
       case 'placeStructure':
         return placeStructure(this, c.kind, c.at);
+      case 'startGrowIn':
+        return startGrowIn(this, c.holeId, c.method);
+      case 'closeHole':
+        return closeHole(this, c.holeId);
+      case 'reopenHole':
+        return reopenHole(this, c.holeId, c.method);
       case 'refreshStakes': {
         const h = this.courses.hole(c.holeId);
         if (!h) return fail('No such hole');
