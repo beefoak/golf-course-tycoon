@@ -93,7 +93,7 @@ export function scheduleDay(g: Game): number {
       if (minute === null) { turnedAway += size; continue; }
       const grp = createGroup(g, course.id, ids, g.day, minute, roundHoles(course, len));
       grp.feePerGolfer = greenFee(g.pricing.get(course.id), len);
-      sheet.book(g.day, minute, grp.id, len);
+      sheet.book(g.day, minute, grp.id, len, size);
       booked += size;
     }
     if (turnedAway) g.notify('info', `${course.name}: tee sheet full, ${turnedAway} golfers turned away`);

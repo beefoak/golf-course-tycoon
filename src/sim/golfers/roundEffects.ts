@@ -31,6 +31,7 @@ export function attachRoundEffects(g: Game): void {
     const list = perGroup.get(groupId) ?? [];
     perGroup.set(groupId, list);
     const stats = statsFor(g, grp.courseId);
+    stats.recordHoleTime(g.day, holeId, g.clock.absMinute - grp.holeStartAbsMin);
     const par = holePar(hole);
     const nextId = grp.holeOrder[grp.holeIdx + 1];
     const next = nextId ? g.courses.hole(nextId) : undefined;
@@ -63,5 +64,11 @@ export function attachRoundEffects(g: Game): void {
       golfer.lastSatisfaction = sat;
     }
   });
-  g.registerSystem({ name: 'stats', onDay(game) { for (const s of game.stats.values()) s.roll(game.day); } });
+  g.registerSystem({
+    name: 'stats',
+    onDay(game) {
+      for (const s of game.stats.values()) s.roll(game.day);
+      for (let i = 0; i < game.footfall.length; i++) if (game.footfall[i]) game.footfall[i] = Math.floor(game.footfall[i]! * 0.9);
+    },
+  });
 }

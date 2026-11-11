@@ -25,6 +25,13 @@ import { greenTool } from './ui/tools/greenTool';
 import { holeTool } from './ui/tools/holeTool';
 import { HoleSelection } from './ui/selection';
 import { EntityLayer } from './render/entities';
+import { GolferLayer } from './render/golfers';
+import { FollowCam } from './render/follow';
+import { ThoughtBubbles } from './ui/bubbles';
+import { golferPanel } from './ui/panels/golferPanel';
+import { statsPanel } from './ui/panels/statsPanel';
+import { clubhouseTool } from './ui/tools/clubhouseTool';
+import { Tool } from './ui/tools/tool';
 import { ToolController } from './ui/tools/toolController';
 
 async function startGame(opts: NewGameOptions): Promise<void> {
@@ -54,6 +61,46 @@ async function startGame(opts: NewGameOptions): Promise<void> {
   const sel = new HoleSelection();
   const entities = new EntityLayer(game, () => sel.id);
   worldLayer.addChildAt(entities.container, 0);
+  const golfers = new GolferLayer(game, atlas);
+  worldLayer.addChildAt(golfers.container, 1);
+  const follow = new FollowCam();
+  golfers.followed = () => follow.target?.id ?? null;
+  golfers.speed = () => loop.speed;
+  const bubbles = new ThoughtBubbles(game, () => follow.target?.id ?? null);
+  root.appendChild(bubbles.el);
+
+  // golfer selection: click a golfer with no tool active
+  const golferOwner = { id: 0 };
+  const showGolfer = () => {
+    if (!ctx.inspector.isOwner(golferOwner)) return;
+    ctx.inspector.update(golferOwner, golferPanel(game, golferOwner.id, () => {
+      follow.target = follow.target?.id === golferOwner.id ? null : { kind: 'golfer', id: golferOwner.id };
+      showGolfer();
+    }, follow.target?.id === golferOwner.id));
+  };
+  ctx.tools.fallback = t => {
+    const id = golfers.pick(t, camera.zoom);
+    if (id === null) return;
+    golferOwner.id = id;
+    ctx.inspector.show(golferOwner, document.createElement('div'));
+    showGolfer();
+  };
+  // course overview tool (panel only)
+  const courseOwner: Tool = {
+    id: 'course', label: 'Course', cursor: 'default',
+    panel: () => { const el = document.createElement('div'); queueMicrotask(showCourse); return el; },
+  };
+  const showCourse = () => {
+    if (!ctx.inspector.isOwner(courseOwner)) return;
+    ctx.inspector.update(courseOwner, statsPanel(game, game.courses.list[0]?.id ?? 0, showCourse));
+  };
+  setInterval(() => {
+    // live panels refresh twice a second, but never while the player is typing in them
+    if ((document.activeElement as HTMLElement | null)?.tagName === 'INPUT') return;
+    showGolfer();
+    showCourse();
+  }, 500);
+
   const green = greenTool(game, sel, chunks, () => overlayBar.refresh());
   const holes = holeTool(game, sel, ctx.inspector, () => ctx.tools.setTool(green));
   const toolbar = createToolbar(ctx, [
@@ -66,6 +113,8 @@ async function startGame(opts: NewGameOptions): Promise<void> {
     { make: () => hazardTool(game), hotkey: 'b' },
     { make: () => pathTool(game), hotkey: 'k' },
     { make: () => structureTool(game), hotkey: 'u' },
+    { make: () => clubhouseTool(game), hotkey: 'c' },
+    { make: () => courseOwner, hotkey: 'o' },
   ]);
   root.append(hud.el, toolbar, ctx.inspector.el, createNotifications(ctx), h('div', { class: 'panel bottombar' }, overlayBar.el, status));
   game.events.on('cash', () => { if (overlayBar.current() === 'land') overlayBar.refresh(); });
@@ -87,6 +136,7 @@ async function startGame(opts: NewGameOptions): Promise<void> {
     camera.x -= (e.clientX - drag.x) / camera.pxPerTile;
     camera.y -= (e.clientY - drag.y) / camera.pxPerTile;
     drag = { x: e.clientX, y: e.clientY };
+    follow.target = null;
   });
   canvas.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -94,6 +144,8 @@ async function startGame(opts: NewGameOptions): Promise<void> {
   app.ticker.add(t => {
     loop.advance(Math.min(t.deltaMS, 250));
     const speed = (700 / camera.pxPerTile) * (t.deltaMS / 1000);
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].some(k => keys.has(k))) follow.target = null;
+    follow.update(camera, game);
     if (keys.has('w') || keys.has('arrowup')) camera.y -= speed;
     if (keys.has('s') || keys.has('arrowdown')) camera.y += speed;
     if (keys.has('a') || keys.has('arrowleft')) camera.x -= speed;
@@ -101,8 +153,10 @@ async function startGame(opts: NewGameOptions): Promise<void> {
     camera.clampTo(game.world.size);
     chunks.update(camera);
     entities.update(camera.pxPerTile);
+    golfers.update(camera, canvas.clientWidth, canvas.clientHeight, performance.now());
+    bubbles.update(camera, canvas.clientWidth, canvas.clientHeight);
     ctx.tools.drawPreview();
-    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · Space pause');
+    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · O course · click a golfer · Space pause');
     hudTimer += t.deltaMS;
     if (hudTimer > 200) { hudTimer = 0; hud.refresh(); }
   });

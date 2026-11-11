@@ -34,6 +34,8 @@ export class TeeSheet {
   firstTee = 360; // 06:00
   /** day → minute → group id */
   booked = new Map<number, Map<number, number>>();
+  /** day → golfers booked */
+  golfers = new Map<number, number>();
 
   lastTee(roundHoles: number): number {
     return DAY_END_MIN - MIN_PER_HOLE * roundHoles;
@@ -49,8 +51,9 @@ export class TeeSheet {
     if ((minute - this.firstTee) % this.intervalMin !== 0) return false;
     return !this.booked.get(day)?.has(minute);
   }
-  book(day: number, minute: number, groupId: number, roundHoles = 9): boolean {
+  book(day: number, minute: number, groupId: number, roundHoles = 9, size = 0): boolean {
     if (!this.isFree(day, minute, roundHoles)) return false;
+    this.golfers.set(day, (this.golfers.get(day) ?? 0) + size);
     let b = this.booked.get(day);
     if (!b) { b = new Map(); this.booked.set(day, b); }
     b.set(minute, groupId);
@@ -66,5 +69,6 @@ export class TeeSheet {
   }
   prune(beforeDay: number): void {
     for (const d of this.booked.keys()) if (d < beforeDay) this.booked.delete(d);
+    for (const d of this.golfers.keys()) if (d < beforeDay) this.golfers.delete(d);
   }
 }

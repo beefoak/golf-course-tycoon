@@ -43,6 +43,8 @@ export interface Group {
   feePerGolfer: number;
   /** waitingMin when the current hole started (per-hole waiting = waitingMin - this) */
   holeWaitStart: number;
+  /** absolute minute the current hole started */
+  holeStartAbsMin: number;
   rng: Rng;
 }
 
@@ -62,10 +64,20 @@ export function createGroup(g: Game, courseId: number, golferIds: number[], day:
   const grp: Group = {
     id, courseId, golferIds: [...golferIds], day, teeTime, holeOrder: order, holeIdx: 0, phase: 'toTee', started: false,
     pos: { x: 0, y: 0 }, balls: new Map(), scores: new Map(golferIds.map(gid => [gid, []])), usesCart, waitingMin: 0,
-    path: [], busySec: 0, current: null, lastShot: null, startAbsMin: 0, feePerGolfer: 0, holeWaitStart: 0, rng: g.rng.fork(`group${id}`),
+    path: [], busySec: 0, current: null, lastShot: null, startAbsMin: 0, feePerGolfer: 0, holeWaitStart: 0, holeStartAbsMin: 0, rng: g.rng.fork(`group${id}`),
   };
   g.groups.push(grp);
   return grp;
+}
+
+/** Footfall heat (2×2-tile cells) from groups walking; feeds the traffic overlay. */
+function footstep(g: Game, p: Vec2): void {
+  const side = Math.ceil(g.world.size / 2);
+  const cx = Math.floor(p.x / 2), cy = Math.floor(p.y / 2);
+  if (cx < 0 || cy < 0 || cx >= side || cy >= side) return;
+  if (g.footfall.length !== side * side) g.footfall = new Uint16Array(side * side);
+  const i = cy * side + cx;
+  if (g.footfall[i]! < 65535) g.footfall[i]!++;
 }
 
 const golferOf = (g: Game, id: number): Golfer => {
@@ -91,6 +103,7 @@ export function countGroupsOnHole(g: Game, holeId: number): number {
 function startHoleFor(g: Game, grp: Group): void {
   const hole = g.courses.hole(currentHoleId(grp)!)!;
   grp.holeWaitStart = grp.waitingMin;
+  grp.holeStartAbsMin = g.clock.absMinute;
   grp.balls = new Map(grp.golferIds.map(id => [id, startHole(g, golferOf(g, id), hole)]));
 }
 
@@ -99,7 +112,8 @@ function walkTo(g: Game, grp: Group, to: Vec2): void {
   grp.path = p ? p.slice(1) : [{ ...to }];
 }
 
-function advance(grp: Group): void {
+function advance(g: Game, grp: Group): void {
+  if (grp.path.length) footstep(g, grp.pos);
   let left = ((grp.usesCart ? CART_MPS : WALK_MPS) * SEC_PER_TICK) / TILE_M;
   while (left > 0 && grp.path.length) {
     const t = grp.path[0]!;
@@ -186,7 +200,7 @@ function tickGroup(g: Game, grp: Group): void {
     grp.current = null;
     return;
   }
-  if (grp.path.length) { advance(grp); return; }
+  if (grp.path.length) { advance(g, grp); return; }
   if (grp.phase === 'toClubhouse') { endRound(g, grp); return; }
 
   const b = nextToPlay(grp);
@@ -194,7 +208,7 @@ function tickGroup(g: Game, grp: Group): void {
   if (Math.hypot(b.pos.x - grp.pos.x, b.pos.y - grp.pos.y) > 3) {
     grp.phase = b.strokes === 0 ? (grp.holeIdx === 0 ? 'toTee' : 'toNextTee') : 'walkingToBall';
     walkTo(g, grp, b.pos);
-    advance(grp);
+    advance(g, grp);
     return;
   }
   const hole = g.courses.hole(b.holeId)!;

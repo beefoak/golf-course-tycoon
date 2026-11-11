@@ -91,6 +91,8 @@ export class Game {
   thoughts: Thought[] = [];
   /** courseId → rolling stats */
   stats = new Map<number, CourseStats>();
+  /** walking traffic per 2×2-tile cell (fades daily) */
+  footfall = new Uint16Array(0);
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];

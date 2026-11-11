@@ -1,10 +1,13 @@
 import { Container, Graphics } from 'pixi.js';
+import { Vec2 } from '../../core/geom';
 import { Camera } from '../../render/camera';
 import { Tool } from './tool';
 
 /** Routes canvas pointer/keyboard input (left button) to the active tool and draws its preview. */
 export class ToolController {
   active: Tool | null = null;
+  /** Left click with no tool active (selects golfers). */
+  fallback: ((t: Vec2, e: PointerEvent) => void) | null = null;
   private gfx = new Graphics();
   private listeners: ((t: Tool | null) => void)[] = [];
 
@@ -12,7 +15,8 @@ export class ToolController {
     worldLayer.addChild(this.gfx);
     const tile = (e: PointerEvent) => this.camera.screenToTile(e.offsetX, e.offsetY, canvas.clientWidth, canvas.clientHeight);
     canvas.addEventListener('pointerdown', e => {
-      if (e.button !== 0 || !this.active) return;
+      if (e.button !== 0) return;
+      if (!this.active) { this.fallback?.(tile(e), e); return; }
       canvas.setPointerCapture(e.pointerId);
       this.active.onPointerDown?.(tile(e), e);
     });

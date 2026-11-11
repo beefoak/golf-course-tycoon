@@ -13,6 +13,7 @@ interface Entry { day: number; holeId: number; par: number; strokes: number; put
 export class CourseStats {
   entries: Entry[] = [];
   rounds: { day: number; minutes: number }[] = [];
+  holeTimes: { day: number; holeId: number; minutes: number }[] = [];
   /** day → list of OB/lost/water positions */
   losses: { day: number; at: Vec2 }[] = [];
   landingHeat: Uint16Array;
@@ -36,6 +37,14 @@ export class CourseStats {
       if (s.result === 'ob' || s.result === 'lost' || s.result === 'water') this.losses.push({ day, at: { ...s.final } });
     }
   }
+  recordHoleTime(day: number, holeId: number, minutes: number): void {
+    this.holeTimes.push({ day, holeId, minutes });
+  }
+  /** Average minutes groups take on a hole (0 = no data). */
+  holeMinutes(holeId: number): number {
+    const xs = this.holeTimes.filter(h => h.holeId === holeId);
+    return xs.length ? xs.reduce((s, h) => s + h.minutes, 0) / xs.length : 0;
+  }
   recordRound(day: number, minutes: number): void {
     this.rounds.push({ day, minutes });
   }
@@ -45,6 +54,7 @@ export class CourseStats {
     this.entries = this.entries.filter(e => e.day > cutoff);
     this.rounds = this.rounds.filter(e => e.day > cutoff);
     this.losses = this.losses.filter(e => e.day > cutoff);
+    this.holeTimes = this.holeTimes.filter(e => e.day > cutoff);
     for (let i = 0; i < this.landingHeat.length; i++) if (this.landingHeat[i]) this.landingHeat[i] = Math.floor(this.landingHeat[i]! * 0.96);
   }
 
