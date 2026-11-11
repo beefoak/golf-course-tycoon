@@ -11,6 +11,7 @@ import { commitPlan } from './construction/plan';
 import { planSurfacePaint } from './construction/paint';
 import { planTerrain } from './construction/terrain';
 import { CourseRegistry } from './course/course';
+import { GolferPool } from './golfers/generate';
 import { handleCourseCommand, isCourseCommand } from './course/courseCommands';
 import { commitPenHole } from './course/pen';
 import { planGreenShape } from './course/green';
@@ -64,6 +65,7 @@ export class Game {
   events = new EventBus<GameEvents>();
   soilStockpileM3 = 0;
   courses = new CourseRegistry();
+  golfers = new GolferPool();
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
