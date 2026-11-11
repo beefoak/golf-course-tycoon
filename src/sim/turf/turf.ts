@@ -26,11 +26,11 @@ export const DEFAULT_TURF: TurfSettings = { greenMowMm: 3.6, teeMowMm: 10, fairw
 export interface TurfState {
   settings: Map<number, TurfSettings>;
   holeOverrides: Map<number, Partial<TurfSettings>>;
-  /** Until the maintenance program (Task 31) exists, course turf is mown and bunkers raked each night. */
+  /** Off by default: the crew does the work now (Task 32). On = turf is mown and bunkers raked each night for free (tests, arcade). */
   autoCare: boolean;
 }
 export function newTurfState(): TurfState {
-  return { settings: new Map(), holeOverrides: new Map(), autoCare: true };
+  return { settings: new Map(), holeOverrides: new Map(), autoCare: false };
 }
 
 export function turfSettings(g: Game, courseId: number, holeId = 0): TurfSettings {

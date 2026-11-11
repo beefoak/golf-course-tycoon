@@ -27,6 +27,8 @@ import { HoleSelection } from './ui/selection';
 import { EntityLayer } from './render/entities';
 import { GolferLayer } from './render/golfers';
 import { FollowCam } from './render/follow';
+import { StaffLayer } from './render/staff';
+import { crewMemberPanel } from './ui/panels/crewMemberPanel';
 import { ThoughtBubbles } from './ui/bubbles';
 import { golferPanel } from './ui/panels/golferPanel';
 import { statsPanel } from './ui/panels/statsPanel';
@@ -53,6 +55,8 @@ async function startGame(game: Game): Promise<void> {
   camera.x = game.world.size / 2;
   camera.y = game.world.size - 60;
   const loop = new GameLoop(game);
+  // dev builds only: poke the sim from the console
+  if (import.meta.env.DEV) Object.assign(window, { __game: game, __camera: camera });
   const status = h('div', { class: 'status' });
   const ctx: UiContext = {
     game, loop, app, atlas, camera, chunks, world: worldLayer, root,
@@ -69,9 +73,13 @@ async function startGame(game: Game): Promise<void> {
   const golfers = new GolferLayer(game, atlas);
   worldLayer.addChildAt(golfers.container, 1);
   const follow = new FollowCam();
-  golfers.followed = () => follow.target?.id ?? null;
+  const followedGolfer = () => (follow.target?.kind === 'golfer' ? follow.target.id : null);
+  golfers.followed = followedGolfer;
+  const crew = new StaffLayer(game, atlas);
+  worldLayer.addChildAt(crew.container, 2);
+  crew.followed = () => (follow.target?.kind === 'staff' ? follow.target.id : null);
   golfers.speed = () => loop.speed;
-  const bubbles = new ThoughtBubbles(game, () => follow.target?.id ?? null);
+  const bubbles = new ThoughtBubbles(game, followedGolfer);
   root.appendChild(bubbles.el);
 
   // golfer selection: click a golfer with no tool active
@@ -79,13 +87,30 @@ async function startGame(game: Game): Promise<void> {
   const showGolfer = () => {
     if (!ctx.inspector.isOwner(golferOwner)) return;
     ctx.inspector.update(golferOwner, golferPanel(game, golferOwner.id, () => {
-      follow.target = follow.target?.id === golferOwner.id ? null : { kind: 'golfer', id: golferOwner.id };
+      follow.target = followedGolfer() === golferOwner.id ? null : { kind: 'golfer', id: golferOwner.id };
       showGolfer();
-    }, follow.target?.id === golferOwner.id));
+    }, followedGolfer() === golferOwner.id));
+  };
+  // crew selection
+  const crewOwner = { id: 0 };
+  const followedCrew = () => (follow.target?.kind === 'staff' ? follow.target.id : null);
+  const showCrew = () => {
+    if (!ctx.inspector.isOwner(crewOwner)) return;
+    ctx.inspector.update(crewOwner, crewMemberPanel(game, crewOwner.id, () => {
+      follow.target = followedCrew() === crewOwner.id ? null : { kind: 'staff', id: crewOwner.id };
+      showCrew();
+    }, followedCrew() === crewOwner.id));
   };
   ctx.tools.fallback = t => {
     const id = golfers.pick(t, camera.zoom);
-    if (id === null) return;
+    if (id === null) {
+      const sid = crew.pick(t, camera.zoom);
+      if (sid === null) return;
+      crewOwner.id = sid;
+      ctx.inspector.show(crewOwner, document.createElement('div'));
+      showCrew();
+      return;
+    }
     golferOwner.id = id;
     ctx.inspector.show(golferOwner, document.createElement('div'));
     showGolfer();
@@ -103,6 +128,7 @@ async function startGame(game: Game): Promise<void> {
     // live panels refresh twice a second, but never while the player is typing in them
     if ((document.activeElement as HTMLElement | null)?.tagName === 'INPUT') return;
     showGolfer();
+    showCrew();
     showCourse();
   }, 500);
 
@@ -178,6 +204,7 @@ async function startGame(game: Game): Promise<void> {
     chunks.update(camera);
     entities.update(camera.pxPerTile);
     golfers.update(camera, canvas.clientWidth, canvas.clientHeight, performance.now());
+    crew.update(camera, canvas.clientWidth, canvas.clientHeight, performance.now());
     bubbles.update(camera, canvas.clientWidth, canvas.clientHeight);
     ctx.tools.drawPreview();
     ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · M maintenance · I irrigation · O course · V save · click a golfer · Space pause');

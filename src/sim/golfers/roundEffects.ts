@@ -13,7 +13,7 @@ export function statsFor(g: Game, courseId: number): CourseStats {
   return s;
 }
 
-function pushThought(g: Game, t: Thought, roundThoughts: Thought[]): void {
+export function pushThought(g: Game, t: Thought, roundThoughts: Thought[]): void {
   roundThoughts.push(t);
   g.thoughts.push(t);
   if (g.thoughts.length > MAX_THOUGHTS) g.thoughts.splice(0, g.thoughts.length - MAX_THOUGHTS);

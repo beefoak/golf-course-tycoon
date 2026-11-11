@@ -10,7 +10,7 @@ import { lieAt } from './lie';
 
 export type ThoughtKey =
   | 'greenFast' | 'greenSlow' | 'waited' | 'lostBall' | 'water' | 'beautifulView' | 'tooHard' | 'tooEasy'
-  | 'goodValue' | 'overpriced' | 'longWalk' | 'greatShot' | 'poorCondition' | 'bunkerUnraked';
+  | 'goodValue' | 'overpriced' | 'longWalk' | 'greatShot' | 'poorCondition' | 'bunkerUnraked' | 'crewInWay';
 
 export const THOUGHT_TEXT: Record<ThoughtKey, (ctx: { hole: number }) => string> = {
   greenFast: ({ hole }) => `Green was way too fast on ${hole}`,
@@ -27,6 +27,7 @@ export const THOUGHT_TEXT: Record<ThoughtKey, (ctx: { hole: number }) => string>
   greatShot: ({ hole }) => `Birdie on ${hole}! What a shot!`,
   poorCondition: ({ hole }) => `The course is in rough shape around ${hole}`,
   bunkerUnraked: ({ hole }) => `Nobody raked the bunker on ${hole}`,
+  crewInWay: ({ hole }) => `Maintenance crew in the way on ${hole}`,
 };
 
 function ordinal(n: number): string {
@@ -46,7 +47,7 @@ export interface Thought {
 
 export const THOUGHT_MOOD: Record<ThoughtKey, number> = {
   greenFast: -1, greenSlow: -1, waited: -1, lostBall: -1, water: -1, beautifulView: 1, tooHard: -2, tooEasy: -1,
-  goodValue: 1, overpriced: -2, longWalk: -1, greatShot: 2, poorCondition: -2, bunkerUnraked: -1,
+  goodValue: 1, overpriced: -2, longWalk: -1, greatShot: 2, poorCondition: -2, bunkerUnraked: -1, crewInWay: -1,
 };
 
 export function thoughtText(t: Thought): string {

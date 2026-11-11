@@ -1,6 +1,6 @@
 import { Application, Container, Sprite, Texture } from 'pixi.js';
 import { PARCEL_TILES } from '../core/units';
-import { World } from '../sim/world/world';
+import { TILE_FLAG, World } from '../sim/world/world';
 import { Feature, Surface } from '../sim/world/tiles';
 import { Atlas, PATTERN_PX, shadePacked } from './atlas';
 import { Camera, TILE_PX } from './camera';
@@ -10,6 +10,7 @@ import { hillshade } from './shading';
 export type OverlayFn = (x: number, y: number) => number | null;
 
 const C = PARCEL_TILES;
+export const STRIPED = new Set<Surface>([Surface.Fairway, Surface.Green, Surface.Tee, Surface.Fringe]);
 
 function patternName(w: World, x: number, y: number): string {
   const i = w.idx(x, y);
@@ -20,7 +21,8 @@ function patternName(w: World, x: number, y: number): string {
     case Feature.Neighbor: return 'neighbor';
   }
   const s = w.surface[i] as Surface;
-  if (s === Surface.Fairway) return Math.floor((x + y) / 4) % 2 === 0 ? 'fairway_stripe_a' : 'fairway_stripe_b';
+  // mowing bands come from the crew's last pass (the stripe bit), lighter one way, darker the other
+  if (STRIPED.has(s)) return w.flags[i]! & TILE_FLAG.stripe ? `stripe_${s}_a` : `stripe_${s}_b`;
   return `surface_${s}`;
 }
 

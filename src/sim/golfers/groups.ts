@@ -251,7 +251,8 @@ function tickGroup(g: Game, grp: Group): void {
   grp.current = b.golferId;
   grp.planned = null;
   grp.phase = putting ? 'putting' : b.strokes === 0 ? 'teeing' : 'addressing';
-  grp.busySec = putting ? PUTT_SEC : SHOT_SEC;
+  // the starter and marshal hurry things along
+  grp.busySec = (putting ? PUTT_SEC : SHOT_SEC) * (g.pacePush.get(grp.courseId) ?? 1);
 }
 
 /** Headless finish (e.g. the day ended with the group still out): play out every remaining stroke. */

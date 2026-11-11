@@ -23,6 +23,7 @@ import { moraleSystem } from './staff/morale';
 import { findCandidate } from './staff/market';
 import { MaintenanceProgram, assignZone, createZone, removeProgramRule, setProgramRule } from './staff/program';
 import { WorkOrderBook, createUrgentOrder, newOrderBook, pauseOrder, programSystem } from './staff/workOrders';
+import { staffAgentSystem } from './staff/agents';
 import { Fleet, assignEquipment, attachEquipment, buyEquipment, newFleet, sellEquipment, upgradeBuilding } from './staff/equipment';
 import { attachIrrigation, IrrigationSystem, newIrrigation, placePipe, placePump, placeSprinkler, removeSprinkler, repairSprinkler, setSchedule } from './turf/irrigation';
 import type { CourseStats } from './golfers/stats';
@@ -115,6 +116,10 @@ export class Game {
   equipment: Fleet = newFleet();
   programs = new Map<number, MaintenanceProgram>();
   workOrders: WorkOrderBook = newOrderBook();
+  /** shot-time multiplier per course from starter/marshal (recomputed each minute) */
+  pacePush = new Map<number, number>();
+  /** group:hole keys that already grumbled about crew today */
+  crewGrumbles = new Set<string>();
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
@@ -155,6 +160,7 @@ export class Game {
     g.registerSystem(moraleSystem);
     attachEquipment(g);
     g.registerSystem(programSystem);
+    g.registerSystem(staffAgentSystem);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }

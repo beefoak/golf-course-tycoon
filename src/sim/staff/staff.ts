@@ -32,6 +32,8 @@ export interface Staff {
   trainingUntilDay: number;
   /** equipment in hand (Task 30) */
   equipmentId: number | null;
+  /** on-map state (Task 32) */
+  agent?: { path: Vec2[]; carry: number; waiting: boolean; autoEquip: boolean };
 }
 
 /** A person on the job market (not yet hired). */

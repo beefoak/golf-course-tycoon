@@ -97,6 +97,13 @@ const SPRITES: Record<string, SpriteArt[]> = {
     art(['c.ww..', '.chh..', '.ssss.', '..ss..', '..ss..', '..pp..', '.p..p.', '.k..k.'], GOLFER_COLORS),
     art(['..ww.c', '..hhc.', '.ssss.', '..ss..', '..ss..', '..pp..', '.p..p.', '.k..k.'], GOLFER_COLORS),
   ],
+  // grounds crew: hi-vis shirt, cap
+  staff_walk: [
+    ['..yy..', '..hh..', '.oooo.', 'o.oo.o', '..oo..', '..pp..', '.p..p.', '.k..k.'],
+    ['..yy..', '..hh..', '.oooo.', '.oooo.', '..oo..', '..pp..', '..pp..', '..kk..'],
+    ['..yy..', '..hh..', '.oooo.', 'o.oo.o', '..oo..', '..pp..', '.p..p.', 'k....k'],
+    ['..yy..', '..hh..', '.oooo.', '.oooo.', '..oo..', '..pp..', '..pp..', '..kk..'],
+  ].map(r => art(r, { h: 0xf0c8a0, o: 0xf08a20, y: 0xe8d040, p: 0x384050, k: 0x202020 })),
   cart: [art(['.wwwwww.', 'wkkkkkkw', 'wccccccw', 'wccccccw', '.k....k.'], { w: 0xf0f0f0, k: 0x303030, c: 0xd8d8d8 })],
   mower: [art(['.rrrr.', 'rrkkrr', 'rrrrrr', 'k....k'], { r: 0xd03030, k: 0x202020 })],
   flag: [art(['pr..', 'prrr', 'prr.', 'p...', 'p...', 'p...', 'p...', 'k...'], { p: 0xf0f0f0, r: 0xe23b3b, k: 0x202020 })],
@@ -117,8 +124,10 @@ export class Atlas {
       const s = Number(key) as Surface;
       this.patterns.set(`surface_${s}`, makePattern(palette[s], kindFor[s] ?? 'grass', rng));
     }
-    this.patterns.set('fairway_stripe_a', makePattern(palette[Surface.Fairway], 'stripe_a', rng));
-    this.patterns.set('fairway_stripe_b', makePattern(palette[Surface.Fairway], 'stripe_b', rng));
+    for (const s of [Surface.Fairway, Surface.Green, Surface.Tee, Surface.Fringe]) {
+      this.patterns.set(`stripe_${s}_a`, makePattern(palette[s], 'stripe_a', rng));
+      this.patterns.set(`stripe_${s}_b`, makePattern(palette[s], 'stripe_b', rng));
+    }
     this.patterns.set('rock', makePattern(featureColors[1] ?? 0x888888, 'rock', rng));
     this.patterns.set('road', makePattern(featureColors[5] ?? 0x444444, 'asphalt', rng));
     this.patterns.set('wetland', makePattern(featureColors[3] ?? 0x4f7a5a, 'reeds', rng));
