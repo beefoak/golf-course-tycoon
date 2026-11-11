@@ -6,6 +6,7 @@ import type { Game, System } from '../game';
 import { findPath } from '../world/pathfind';
 import { Surface } from '../world/tiles';
 import { addWear } from '../turf/turf';
+import { firstTeeAllowed, stormActive } from '../turf/weather';
 import { center } from './ai';
 import { Golfer } from './golfer';
 import { HolePlay, HoleResult, ShotRecord, isPutt, nextTarget, pickUp, playStroke, startHole } from './hole';
@@ -199,6 +200,8 @@ function tickGroup(g: Game, grp: Group): void {
   if (grp.phase === 'done') return;
   if (!grp.started) {
     if (g.day < grp.day || (g.day === grp.day && g.clock.minuteOfDay < grp.teeTime)) return;
+    // frost delays the first tee; nobody tees off into a storm
+    if (g.clock.minuteOfDay < firstTeeAllowed(g) || stormActive(g)) return;
     grp.started = true;
     grp.startAbsMin = g.clock.absMinute;
     g.events.emit('roundStart', { groupId: grp.id });
@@ -211,12 +214,14 @@ function tickGroup(g: Game, grp: Group): void {
     walkTo(g, grp, first.pos);
     return;
   }
+  // lightning: everyone off the course until it passes
+  if (stormActive(g)) { grp.waitingMin += 1 / TICKS_PER_MIN; return; }
   if (grp.busySec > 0) {
     grp.busySec -= SEC_PER_TICK;
     if (grp.busySec > 0) return;
     const b = grp.balls.get(grp.current!)!;
     const hole = g.courses.hole(b.holeId)!;
-    const rec = playStroke(g, golferOf(g, b.golferId), hole, b, grp.rng);
+    const rec = playStroke(g, golferOf(g, b.golferId), hole, b, grp.rng, g.weather.wind);
     grp.lastShot = { golferId: b.golferId, rec, absMinute: g.clock.absMinute };
     grp.current = null;
     return;
@@ -265,7 +270,7 @@ export function finishRoundHeadless(g: Game, grp: Group): void {
       const hole = g.courses.hole(b.holeId);
       if (!hole) { pickUp(b); continue; }
       let guard = 0;
-      while (!b.done && guard++ < 40) playStroke(g, golferOf(g, id), hole, b, grp.rng);
+      while (!b.done && guard++ < 40) playStroke(g, golferOf(g, id), hole, b, grp.rng, g.weather.wind);
       pickUp(b);
     }
     grp.busySec = 0; grp.current = null; grp.path = [];

@@ -31,14 +31,16 @@ test('with a clubhouse and 3 open holes, golfers play and pay', () => {
   expect(visited.length).toBeGreaterThan(0);
 });
 
-test('doubling the fee reduces rounds over 10 days', () => {
+test('doubling the fee reduces golfers over 20 days', () => {
   const play = (feePerHole: number) => {
     const { g, course } = threeHoleCourse();
     addClubhouse(g, course);
     g.dispatch({ t: 'setGreenFee', courseId: course.id, holes: 3, fee: feePerHole * 3 });
-    const c = count(g);
-    runDays(g, 10);
-    return c.started;
+    let golfers = 0;
+    g.events.on('roundStart', ({ groupId }) => { golfers += g.groups.find(x => x.id === groupId)?.golferIds.length ?? 0; });
+    runDays(g, 20);
+    return golfers;
   };
+  // both runs share the seeded weather, so only the price differs
   expect(play(16)).toBeLessThan(play(8));
 });

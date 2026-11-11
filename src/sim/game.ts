@@ -16,6 +16,7 @@ import { Group, countGroupsOnHole, groupSystem } from './golfers/groups';
 import { attachDemand } from './golfers/demand';
 import { attachRoundEffects } from './golfers/roundEffects';
 import { attachTurf, newTurfState, setGrass, TurfState } from './turf/turf';
+import { attachWeather, WeatherState } from './turf/weather';
 import type { CourseStats } from './golfers/stats';
 import type { Thought } from './golfers/thoughts';
 import { Pricing, TeeSheet } from './golfers/teeSheet';
@@ -97,6 +98,8 @@ export class Game {
   /** walking traffic per 2×2-tile cell (fades daily) */
   footfall = new Uint16Array(0);
   turf: TurfState = newTurfState();
+  weather!: WeatherState;
+  weatherRng: Rng;
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
@@ -109,6 +112,7 @@ export class Game {
     this.difficulty = o.difficulty;
     this.world = world;
     this.rng = new Rng(o.seed).fork('sim');
+    this.weatherRng = new Rng(o.seed).fork('weather');
     this.parcels = ParcelGrid.fromWorld(world, new Rng(o.seed).fork('parcels'));
     this.ledger = new Ledger(STARTING_CASH[o.difficulty]);
   }
@@ -124,6 +128,7 @@ export class Game {
 
   private static wire(g: Game): Game {
     attachLifecycle(g);
+    attachWeather(g);
     g.registerSystem(groupSystem);
     attachDemand(g);
     attachRoundEffects(g);

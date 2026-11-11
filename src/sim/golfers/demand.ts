@@ -4,13 +4,14 @@ import type { Game, System } from '../game';
 import { Golfer } from './golfer';
 import { createGroup } from './groups';
 import { TeeSheet, greenFee, roundHoles, roundOptions } from './teeSheet';
+import { isClosedSeason, weatherDemandFactor } from '../turf/weather';
 
 export const BASE_DEMAND = 30;
 
-/** Placeholders for systems that arrive later (reputation Task 40, weather Task 26). */
+/** Demand multipliers (reputation is a placeholder until Task 40). */
 export const demandHooks = {
   reputation: (_g: Game, _course: Course): number => 1,
-  weather: (_g: Game): number => 1,
+  weather: (g: Game): number => (isClosedSeason(g) ? 0 : weatherDemandFactor(g.weather)),
 };
 
 export function teeSheetFor(g: Game, courseId: number): TeeSheet {
@@ -72,6 +73,7 @@ export function scheduleDay(g: Game): number {
   let booked = 0;
   for (const course of g.courses.list) {
     const opts = roundOptions(course);
+    if (isClosedSeason(g)) continue;
     if (!opts.length || !clubhouseOf(g, course.id)) {
       if (course.holes.length) g.notify('warn', `${course.name} needs ${!clubhouseOf(g, course.id) ? 'a clubhouse' : 'an open hole'} before golfers will come`);
       continue;

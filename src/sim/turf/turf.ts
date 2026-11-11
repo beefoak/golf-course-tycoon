@@ -6,6 +6,7 @@ import type { Game, System } from '../game';
 import { registerSaveable } from '../saveRegistry';
 import { isTurfSurface, Surface } from '../world/tiles';
 import { TERRAINS } from '../world/terrainTypes';
+import { ambientMoisture } from './weather';
 import { defaultGrass, Grass, grassSpec, seasonalGrowth } from './grasses';
 
 /** Per-course mowing and conditioning targets (holes may override). */
@@ -129,9 +130,9 @@ function sround(v: number, i: number, tick: number): number {
   return f + ((h & 0xffff) / 65536 < v - f ? 1 : 0);
 }
 
-/** Where soil moisture drifts without weather or irrigation (Tasks 26–27 refine this). */
-export function moistureTarget(_g: Game, _i: number): number {
-  return 55;
+/** Where soil moisture drifts today (weather-driven; irrigation adds water at night on top). */
+export function moistureTarget(g: Game): number {
+  return g.weather ? ambientMoisture(g.weather) : 55;
 }
 
 /** Health a tile settles toward given climate, moisture, wear and mowing stress. */
@@ -167,6 +168,7 @@ export const turfSystem: System = {
       wearK[gr] = 20 * spec.wearTolerance * DT_DAYS;
     }
     const up = 4 * DT_DAYS, down = 8 * DT_DAYS;
+    const mt = moistureTarget(g);
     const n = w.grass.length;
     const grass = w.grass, health = w.health, mow = w.mowHeight, moist = w.moisture, wearA = w.wear;
     for (let i = tick % STRIPES; i < n; i += STRIPES) {
@@ -178,7 +180,6 @@ export const turfSystem: System = {
       mow[i] = mh;
       // moisture drifts toward the weather/irrigation target
       const m = moist[i]!;
-      const mt = moistureTarget(g, i);
       const m2 = mt === m ? m : Math.max(0, Math.min(100, m + sround(Math.abs(mt - m) * 2 * DT_DAYS, i + 1, tick) * Math.sign(mt - m)));
       moist[i] = m2;
       // wear recovers faster on healthy, tolerant turf
