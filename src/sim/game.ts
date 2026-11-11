@@ -12,6 +12,8 @@ import { planSurfacePaint } from './construction/paint';
 import { planTerrain } from './construction/terrain';
 import { CourseRegistry } from './course/course';
 import { GolferPool } from './golfers/generate';
+import { Group, countGroupsOnHole, groupSystem } from './golfers/groups';
+import type { HoleResult } from './golfers/hole';
 import { handleCourseCommand, isCourseCommand } from './course/courseCommands';
 import { commitPenHole } from './course/pen';
 import { planGreenShape } from './course/green';
@@ -44,6 +46,9 @@ export type GameEvents = {
   notify: Notification;
   cash: { cash: number };
   edit: { tiles: number[] };
+  land: { px: number; py: number };
+  holeComplete: { groupId: number; holeId: number; results: { golferId: number; result: HoleResult }[] };
+  roundComplete: { groupId: number };
 };
 
 export interface System {
@@ -66,6 +71,9 @@ export class Game {
   soilStockpileM3 = 0;
   courses = new CourseRegistry();
   golfers = new GolferPool();
+  /** groups booked or on course (finished groups are dropped) */
+  groups: Group[] = [];
+  nextGroupId = 1;
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
@@ -85,10 +93,12 @@ export class Game {
   static create(o: NewGameOptions): Game {
     const g = new Game(o, generateWorld(o.seed, o.terrain, o.size));
     attachLifecycle(g);
+    g.registerSystem(groupSystem);
+    g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }
 
-  /** Number of golfer groups currently on a hole (replaced by the group system, Task 20). */
+  /** Number of golfer groups currently on a hole (wired to the group system in create()). */
   groupsOnHole: (holeId: number) => number = () => 0;
 
   get day(): number {
@@ -108,10 +118,16 @@ export class Game {
 
   private handle(c: Command): Result<unknown> {
     switch (c.t) {
-      case 'buyParcel':
-        return this.parcels.buy(c.px, c.py, this.ledger, this.day);
-      case 'sellParcel':
-        return this.parcels.sell(c.px, c.py, this.ledger, this.day, this.sellBlockedReason(c.px, c.py));
+      case 'buyParcel': {
+        const r = this.parcels.buy(c.px, c.py, this.ledger, this.day);
+        if (r.ok) this.events.emit('land', { px: c.px, py: c.py });
+        return r;
+      }
+      case 'sellParcel': {
+        const r = this.parcels.sell(c.px, c.py, this.ledger, this.day, this.sellBlockedReason(c.px, c.py));
+        if (r.ok) this.events.emit('land', { px: c.px, py: c.py });
+        return r;
+      }
       case 'paint':
         return commitPlan(this, planSurfacePaint(this, c.tiles, c.surface), 'construction');
       case 'terrain':

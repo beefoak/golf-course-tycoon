@@ -1,6 +1,7 @@
 import { Vec2, dist } from '../../core/geom';
 import type { Game } from '../game';
 import { isWalkable } from '../world/tiles';
+import { findPath } from '../world/pathfind';
 import { Hole, MAX_PINS, MIN_PINS } from './course';
 import { greenTiles } from './green';
 import { Surface } from '../world/tiles';
@@ -8,11 +9,11 @@ import { Surface } from '../world/tiles';
 const CLUBHOUSE_NEAR_TILES = 75; // 150 m
 
 /**
- * Reachability on foot between two points. Replaced by findPath (Task 20) via setRouteCheck;
- * the default is a bounded BFS over walkable tiles.
+ * Reachability on foot between two points: A* (findPath) over owned, walkable land.
+ * setRouteCheck lets tests swap it; bfsReachable is kept as a cheap fallback.
  */
 export type RouteCheck = (g: Game, from: Vec2, to: Vec2) => boolean;
-let routeCheck: RouteCheck = bfsReachable;
+let routeCheck: RouteCheck = (g, a, b) => findPath(g, { x: a.x + 0.5, y: a.y + 0.5 }, { x: b.x + 0.5, y: b.y + 0.5 }, 'walk') !== null;
 export function setRouteCheck(fn: RouteCheck): void {
   routeCheck = fn;
 }

@@ -10,7 +10,7 @@ import { BallOutcome } from './ballPhysics';
 import { ClubId } from './clubs';
 import { Golfer } from './golfer';
 import { greenStimp } from './greenSpeed';
-import { lieAt } from './lie';
+import { Lie, lieAt } from './lie';
 import { putt } from './putting';
 import { simulateShot } from './shot';
 
@@ -77,59 +77,106 @@ function unplayableDrop(g: Game, spot: Vec2, pin: Vec2, from: Vec2): Vec2 {
   return from;
 }
 
+/** One golfer's progress on one hole (the group system steps this stroke by stroke). */
+export interface HolePlay {
+  golferId: number;
+  holeId: number;
+  pin: Vec2;
+  par: number;
+  max: number;
+  stimp: number;
+  /** current ball position (tile coords) */
+  pos: Vec2;
+  lie: Lie;
+  strokes: number;
+  holed: boolean;
+  pickedUp: boolean;
+  done: boolean;
+  result: HoleResult;
+}
+
+export function startHole(g: Game, golfer: Golfer, hole: Hole): HolePlay {
+  const tee = chooseTee(golfer, hole);
+  const par = holePar(hole);
+  const pos = center(tee.center);
+  return {
+    golferId: golfer.id, holeId: hole.id,
+    pin: center(hole.pins[hole.activePin] ?? hole.greenCenter),
+    par, max: MAX_STROKES(par), stimp: greenStimp(g, hole.id),
+    pos, lie: lieAt(g.world, pos), strokes: 0, holed: false, pickedUp: false, done: false,
+    result: { holeId: hole.id, tee: tee.kind, strokes: 0, putts: 0, shots: [], pickedUp: false, penalties: 0, gir: false, fairwayHit: par >= 4 ? false : null },
+  };
+}
+
+/** Is the next stroke a putt? */
+export function isPutt(g: Game, p: HolePlay): boolean {
+  const lie = lieAt(g.world, p.pos);
+  return lie === 'green' || (lie === 'fringe' && Math.hypot(p.pin.x - p.pos.x, p.pin.y - p.pos.y) * TILE_M < 8);
+}
+
+/** Where the golfer will aim the next full shot (for the play-through spacing rule); null for a putt. */
+export function nextTarget(g: Game, golfer: Golfer, hole: Hole, p: HolePlay): Vec2 | null {
+  if (isPutt(g, p)) return null;
+  return planShot(g, golfer, p.pos, lieAt(g.world, p.pos), hole, p.pin).target;
+}
+
+/**
+ * Play one stroke (a swing or a putt) with penalties and drops, updating the HolePlay.
+ * Ends the hole when holed, or picks up at double par.
+ */
+export function playStroke(g: Game, golfer: Golfer, hole: Hole, p: HolePlay, rng: Rng, wind: Vec2 = { x: 0, y: 0 }): ShotRecord {
+  const r = p.result;
+  let rec: ShotRecord;
+  if (isPutt(g, p)) {
+    if (r.putts === 0 && p.strokes <= p.par - 2 && lieAt(g.world, p.pos) === 'green') r.gir = true;
+    const pt = putt(g, p.pos, p.pin, golfer, p.stimp, rng);
+    p.strokes++; r.putts++;
+    rec = { from: p.pos, landing: pt.final, final: pt.final, club: 'P', result: 'ok', penalty: 0, next: pt.final };
+    if (pt.holed) p.holed = true;
+  } else {
+    const lie = lieAt(g.world, p.pos);
+    const plan = planShot(g, golfer, p.pos, lie, hole, p.pin, rng);
+    const out = simulateShot(g, { from: p.pos, target: plan.target, club: plan.club, lie, golfer, wind }, rng);
+    p.strokes++;
+    let penalty = 0;
+    let next = out.final;
+    switch (out.result) {
+      case 'water': penalty = 1; next = waterDrop(g, out.hazardEntry ?? out.final, p.pos); break;
+      case 'ob':
+      case 'lost': penalty = 1; next = p.pos; break;
+      case 'unplayable': penalty = 1; next = unplayableDrop(g, out.final, p.pin, p.pos); break;
+      default: break;
+    }
+    if (p.strokes === 1 && r.fairwayHit === false && out.result === 'ok') r.fairwayHit = lieAt(g.world, next) === 'fairway';
+    if (out.result === 'ok' && Math.hypot(next.x - p.pin.x, next.y - p.pin.y) * TILE_M < 0.06) p.holed = true;
+    r.penalties += penalty;
+    p.strokes += penalty;
+    rec = { from: p.pos, landing: out.landing, final: out.final, club: plan.club.id, result: out.result, penalty, next };
+  }
+  r.shots.push(rec);
+  p.pos = rec.next;
+  p.lie = lieAt(g.world, p.pos);
+  if (p.holed) p.done = true;
+  else if (p.strokes >= p.max) { p.done = true; p.pickedUp = true; p.strokes = p.max; }
+  r.strokes = p.strokes;
+  r.pickedUp = p.pickedUp;
+  return rec;
+}
+
+/** Pick up immediately (e.g. the day ends): the hole scores double par. */
+export function pickUp(p: HolePlay): void {
+  if (p.done) return;
+  p.done = true; p.pickedUp = true; p.strokes = p.max;
+  p.result.strokes = p.max; p.result.pickedUp = true;
+}
+
 /**
  * Play a whole hole headless: tee choice, shot planning, simulated shots and putts, penalties
  * (water: +1 and drop back on the line; OB/lost: stroke and distance; unplayable: +1 and a
  * 2-club-length drop or replay), and the double-par pickup.
  */
 export function simulateHole(g: Game, golfer: Golfer, hole: Hole, rng: Rng, wind: Vec2 = { x: 0, y: 0 }): HoleResult {
-  const tee = chooseTee(golfer, hole);
-  const pinTile = hole.pins[hole.activePin] ?? hole.greenCenter;
-  const pin = center(pinTile);
-  const par = holePar(hole);
-  const max = MAX_STROKES(par);
-  const stimp = greenStimp(g, hole.id);
-  let ball = center(tee.center);
-  let strokes = 0, putts = 0, penalties = 0;
-  let holed = false;
-  let gir = false;
-  let fairwayHit: boolean | null = par >= 4 ? false : null;
-  const shots: ShotRecord[] = [];
-
-  while (strokes < max) {
-    const lie = lieAt(g.world, ball);
-    const distM = Math.hypot(pin.x - ball.x, pin.y - ball.y) * TILE_M;
-    if (lie === 'green' || (lie === 'fringe' && distM < 8)) {
-      if (putts === 0 && strokes <= par - 2 && lie === 'green') gir = true;
-      const r = putt(g, ball, pin, golfer, stimp, rng);
-      strokes++; putts++;
-      shots.push({ from: ball, landing: r.final, final: r.final, club: 'P', result: 'ok', penalty: 0, next: r.final });
-      ball = r.final;
-      if (r.holed) { holed = true; break; }
-      continue;
-    }
-    const plan = planShot(g, golfer, ball, lie, hole, pin, rng);
-    const out = simulateShot(g, { from: ball, target: plan.target, club: plan.club, lie, golfer, wind }, rng);
-    strokes++;
-    let penalty = 0;
-    let next = out.final;
-    switch (out.result) {
-      case 'water': penalty = 1; next = waterDrop(g, out.hazardEntry ?? out.final, ball); break;
-      case 'ob':
-      case 'lost': penalty = 1; next = ball; break;
-      case 'unplayable': penalty = 1; next = unplayableDrop(g, out.final, pin, ball); break;
-      default: break;
-    }
-    if (strokes === 1 && fairwayHit === false && out.result === 'ok') fairwayHit = lieAt(g.world, next) === 'fairway';
-    // a holed approach (ball finishing in the cup)
-    if (out.result === 'ok' && Math.hypot(next.x - pin.x, next.y - pin.y) * TILE_M < 0.06) holed = true;
-    penalties += penalty;
-    strokes += penalty;
-    shots.push({ from: ball, landing: out.landing, final: out.final, club: plan.club.id, result: out.result, penalty, next });
-    ball = next;
-    if (holed) break;
-  }
-  const pickedUp = !holed;
-  if (pickedUp) strokes = max;
-  return { holeId: hole.id, tee: tee.kind, strokes, putts, shots, pickedUp, penalties, gir, fairwayHit };
+  const p = startHole(g, golfer, hole);
+  while (!p.done) playStroke(g, golfer, hole, p, rng, wind);
+  return p.result;
 }

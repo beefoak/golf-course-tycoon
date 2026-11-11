@@ -1,3 +1,4 @@
+import { clearPathCache } from '../../../src/sim/world/pathfind';
 import { validateHole } from '../../../src/sim/course/validate';
 import { startGrowIn, closeHole, reopenHole, GROW_IN_DAYS, GROW_IN_COST_PER_TILE } from '../../../src/sim/course/lifecycle';
 import { commitPenHole } from '../../../src/sim/course/pen';
@@ -36,6 +37,7 @@ test('error when the next hole cannot be walked to from the previous green', () 
   expect(validateHole(g, r2.value).errors).toEqual([]);
   // wall off the second tee with rock
   for (let y = 165; y < 186; y++) for (let x = 40; x < 61; x++) if (Math.max(Math.abs(x - 50), Math.abs(y - 175)) === 10) g.world.feature[g.world.idx(x, y)] = Feature.Rock;
+  clearPathCache(g); // direct writes bypass commitPlan's edit event
   expect(validateHole(g, r2.value).errors.some(e => /walk/i.test(e))).toBe(true); void h;
 });
 test('grow-in by seed takes 21 days then opens and charges per turf tile', () => {
