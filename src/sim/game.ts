@@ -13,6 +13,9 @@ import { planTerrain } from './construction/terrain';
 import { CourseRegistry } from './course/course';
 import { GolferPool } from './golfers/generate';
 import { Group, countGroupsOnHole, groupSystem } from './golfers/groups';
+import { attachDemand } from './golfers/demand';
+import { Pricing, TeeSheet } from './golfers/teeSheet';
+import { Building, placeBuilding } from './business/buildings';
 import type { HoleResult } from './golfers/hole';
 import { handleCourseCommand, isCourseCommand } from './course/courseCommands';
 import { commitPenHole } from './course/pen';
@@ -49,6 +52,7 @@ export type GameEvents = {
   land: { px: number; py: number };
   holeComplete: { groupId: number; holeId: number; results: { golferId: number; result: HoleResult }[] };
   roundComplete: { groupId: number };
+  roundStart: { groupId: number };
 };
 
 export interface System {
@@ -74,6 +78,11 @@ export class Game {
   /** groups booked or on course (finished groups are dropped) */
   groups: Group[] = [];
   nextGroupId = 1;
+  buildings: Building[] = [];
+  nextBuildingId = 1;
+  teeSheets = new Map<number, TeeSheet>();
+  /** courseId → pricing (absent = defaults) */
+  pricing = new Map<number, Pricing>();
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
@@ -94,6 +103,7 @@ export class Game {
     const g = new Game(o, generateWorld(o.seed, o.terrain, o.size));
     attachLifecycle(g);
     g.registerSystem(groupSystem);
+    attachDemand(g);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }
@@ -155,6 +165,16 @@ export class Game {
         return commitPlan(this, planBridge(this, c.tiles), 'construction');
       case 'placeStructure':
         return placeStructure(this, c.kind, c.at);
+      case 'placeBuilding':
+        return placeBuilding(this, c.kind, c.courseId, c.origin);
+      case 'setGreenFee': {
+        if (!this.courses.get(c.courseId)) return fail('No such course');
+        if (!(c.fee >= 0) || c.fee > 1000) return fail('Fee must be between $0 and $1,000');
+        const p = this.pricing.get(c.courseId) ?? { greenFee: {} };
+        p.greenFee[c.holes] = Math.round(c.fee);
+        this.pricing.set(c.courseId, p);
+        return ok(p);
+      }
       case 'startGrowIn':
         return startGrowIn(this, c.holeId, c.method);
       case 'closeHole':

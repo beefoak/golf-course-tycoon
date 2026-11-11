@@ -39,6 +39,8 @@ export interface Group {
   current: number | null;
   lastShot: { golferId: number; rec: ShotRecord; absMinute: number } | null;
   startAbsMin: number;
+  /** green fee each golfer pays when the round starts (0 = comped/test) */
+  feePerGolfer: number;
   rng: Rng;
 }
 
@@ -58,7 +60,7 @@ export function createGroup(g: Game, courseId: number, golferIds: number[], day:
   const grp: Group = {
     id, courseId, golferIds: [...golferIds], day, teeTime, holeOrder: order, holeIdx: 0, phase: 'toTee', started: false,
     pos: { x: 0, y: 0 }, balls: new Map(), scores: new Map(golferIds.map(gid => [gid, []])), usesCart, waitingMin: 0,
-    path: [], busySec: 0, current: null, lastShot: null, startAbsMin: 0, rng: g.rng.fork(`group${id}`),
+    path: [], busySec: 0, current: null, lastShot: null, startAbsMin: 0, feePerGolfer: 0, rng: g.rng.fork(`group${id}`),
   };
   g.groups.push(grp);
   return grp;
@@ -162,6 +164,7 @@ function tickGroup(g: Game, grp: Group): void {
     if (g.day < grp.day || (g.day === grp.day && g.clock.minuteOfDay < grp.teeTime)) return;
     grp.started = true;
     grp.startAbsMin = g.clock.absMinute;
+    g.events.emit('roundStart', { groupId: grp.id });
     startHoleFor(g, grp);
     const course = g.courses.get(grp.courseId)!;
     const first = nextToPlay(grp)!;
@@ -206,7 +209,7 @@ function tickGroup(g: Game, grp: Group): void {
 /** Headless finish (e.g. the day ended with the group still out): play out every remaining stroke. */
 export function finishRoundHeadless(g: Game, grp: Group): void {
   if (grp.phase === 'done') return;
-  if (!grp.started) { grp.started = true; startHoleFor(g, grp); }
+  if (!grp.started) { grp.started = true; grp.startAbsMin = g.clock.absMinute; g.events.emit('roundStart', { groupId: grp.id }); startHoleFor(g, grp); }
   while ((grp.phase as GroupPhase) !== 'done') {
     for (const id of grp.golferIds) {
       const b = grp.balls.get(id)!;

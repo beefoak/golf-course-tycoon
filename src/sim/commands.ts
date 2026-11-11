@@ -6,6 +6,7 @@ import type { PenInput } from './course/pen';
 import type { SandType } from './construction/hazards';
 import type { PathTier, StructureKind } from './construction/paths';
 import type { GrowMethod } from './course/lifecycle';
+import type { BuildingKind } from './business/buildings';
 
 /** Every change to the sim goes through Game.dispatch(command). Later tasks add members. */
 export type Command =
@@ -28,4 +29,6 @@ export type Command =
   | { t: 'startGrowIn'; holeId: number; method: GrowMethod }
   | { t: 'closeHole'; holeId: number }
   | { t: 'reopenHole'; holeId: number; method?: GrowMethod }
+  | { t: 'placeBuilding'; kind: BuildingKind; courseId: number; origin: Vec2 }
+  | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }
   | CourseCommand;

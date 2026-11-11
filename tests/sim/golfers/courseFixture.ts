@@ -2,7 +2,7 @@ import { Vec2 } from '../../../src/core/geom';
 import { Rng } from '../../../src/core/rng';
 import { Course, Hole } from '../../../src/sim/course/course';
 import { Game } from '../../../src/sim/game';
-import { Surface } from '../../../src/sim/world/tiles';
+import { Feature, Surface } from '../../../src/sim/world/tiles';
 import { newOwnedGame } from '../../helpers';
 
 /** Paint a straight hole (fairway 12 wide, green r8 + fringe) and register it as open. */
@@ -51,4 +51,12 @@ export function threeHoleCourse(): { g: Game; course: Course; holes: Hole[] } {
 export function spawnGolfers(g: Game, n: number, seed = 1): number[] {
   const rng = new Rng(seed);
   return Array.from({ length: n }, () => g.golfers.spawn(rng).id);
+}
+
+/** Put a road along the bottom row and build the clubhouse beside it (west of hole 1's tee). */
+export function addClubhouse(g: Game, course: Course): void {
+  const w = g.world;
+  for (let x = 0; x < w.size; x++) { const i = w.idx(x, w.size - 1); w.feature[i] = Feature.Road; w.surface[i] = Surface.Path; }
+  const r = g.dispatch({ t: 'placeBuilding', kind: 'clubhouse', courseId: course.id, origin: { x: 10, y: w.size - 11 } });
+  if (!r.ok) throw new Error(r.reason);
 }
