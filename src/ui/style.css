@@ -1,0 +1,50 @@
+:root {
+  --bg: #1d2620;
+  --panel: rgba(24, 32, 26, 0.94);
+  --panel-2: #2a362d;
+  --line: #3e4d41;
+  --text: #e8efe4;
+  --muted: #9fb09a;
+  --accent: #8fd16a;
+  --warn: #f0c24a;
+  --bad: #ef6b5b;
+  --font: 'Press Start 2P', ui-monospace, Menlo, Consolas, monospace;
+}
+#ui { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: var(--text); }
+#ui .px { font-family: var(--font); font-size: 10px; letter-spacing: 0.5px; }
+.panel { pointer-events: auto; background: var(--panel); border: 2px solid var(--line); box-shadow: 0 2px 0 #0008; }
+.hud { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; gap: 18px; padding: 0 12px; border-width: 0 0 2px 0; }
+.hud .cash { color: var(--accent); min-width: 140px; }
+.hud .cash.neg { color: var(--bad); }
+.hud .spacer { flex: 1; }
+.btn { pointer-events: auto; background: var(--panel-2); color: var(--text); border: 2px solid var(--line); padding: 5px 9px; cursor: pointer; font: inherit; }
+.btn:hover { border-color: var(--muted); }
+.btn.on { background: #3f5a33; border-color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.toolbar { position: absolute; top: 52px; left: 10px; width: 112px; display: flex; flex-direction: column; gap: 4px; padding: 6px; }
+.toolbar .btn { text-align: left; }
+.inspector { position: absolute; top: 52px; right: 10px; width: 280px; max-height: calc(100% - 120px); overflow: auto; padding: 10px; display: none; }
+.inspector.open { display: block; }
+.inspector h3 { margin: 0 0 8px; font-size: 13px; color: var(--accent); }
+.inspector .row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.inspector .muted, .muted { color: var(--muted); }
+.inspector label { display: block; margin: 6px 0 2px; color: var(--muted); }
+.inspector input[type=range] { width: 100%; }
+.bottombar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; border-width: 2px 0 0 0; }
+.bottombar .overlays { display: flex; gap: 4px; padding: 6px 10px; flex-wrap: wrap; }
+.bottombar .status { padding: 4px 12px 6px; color: var(--muted); min-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toasts { position: absolute; top: 52px; right: 300px; display: flex; flex-direction: column; gap: 6px; width: 320px; }
+.toast { pointer-events: auto; padding: 8px 10px; cursor: pointer; border-left: 4px solid var(--accent); }
+.toast.warn { border-left-color: var(--warn); }
+.toast.bad { border-left-color: var(--bad); }
+.modal-back { position: absolute; inset: 0; background: #0009; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
+.modal { padding: 24px; width: 420px; }
+.modal h1 { font-family: var(--font); font-size: 16px; color: var(--accent); margin: 0 0 18px; line-height: 1.6; }
+.modal label { display: block; margin: 12px 0 4px; color: var(--muted); }
+.modal input, .modal select { width: 100%; box-sizing: border-box; background: var(--panel-2); color: var(--text); border: 2px solid var(--line); padding: 6px; font: inherit; }
+.modal .actions { margin-top: 18px; display: flex; justify-content: flex-end; }
+table.grid { width: 100%; border-collapse: collapse; }
+table.grid td, table.grid th { padding: 2px 4px; text-align: right; border-bottom: 1px solid var(--line); }
+table.grid td:first-child, table.grid th:first-child { text-align: left; }
+.warnline { color: var(--warn); }
+.errline { color: var(--bad); }
