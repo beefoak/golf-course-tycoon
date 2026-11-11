@@ -45,15 +45,26 @@ export function editableTile(g: Game, x: number, y: number): string | null {
 
 /** Plan painting `s` onto tiles. Skips uneditable tiles; removes regular trees (charged). */
 export function planSurfacePaint(g: Game, tiles: Vec2[], s: Surface): EditPlan {
+  const w = g.world;
+  if (!PAINTABLE.has(s)) { const p = emptyPlan(); addReason(p, 'use the dedicated tool for this surface'); return p; }
+  const map = new Map<number, Surface>();
+  let off = 0;
+  for (const t of tiles) {
+    if (!w.inBounds(t.x, t.y)) { off++; continue; }
+    map.set(w.idx(t.x, t.y), s);
+  }
+  const p = planSurfaceMap(g, map);
+  for (let k = 0; k < off; k++) addReason(p, 'off the map');
+  return p;
+}
+
+/** Plan painting a per-tile surface map (tile index → surface), same rules as planSurfacePaint. */
+export function planSurfaceMap(g: Game, map: Map<number, Surface>): EditPlan {
   const p = emptyPlan();
   const w = g.world;
-  if (!PAINTABLE.has(s)) { addReason(p, 'use the dedicated tool for this surface'); return p; }
-  const seen = new Set<number>();
-  for (const t of tiles) {
-    if (!w.inBounds(t.x, t.y)) { addReason(p, 'off the map'); continue; }
-    const i = w.idx(t.x, t.y);
-    if (seen.has(i)) continue;
-    seen.add(i);
+  for (const [i, s] of map) {
+    if (!PAINTABLE.has(s)) { addReason(p, 'use the dedicated tool for this surface'); continue; }
+    const t = { x: i % w.size, y: Math.floor(i / w.size) };
     const why = editableTile(g, t.x, t.y);
     if (why) { addReason(p, why); continue; }
     const cur = w.surface[i] as Surface;

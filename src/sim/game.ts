@@ -12,6 +12,7 @@ import { planSurfacePaint } from './construction/paint';
 import { planTerrain } from './construction/terrain';
 import { CourseRegistry } from './course/course';
 import { handleCourseCommand, isCourseCommand } from './course/courseCommands';
+import { commitPenHole } from './course/pen';
 import { Surface } from './world/tiles';
 import { PARCEL_TILES } from '../core/units';
 import { generateWorld } from './world/mapgen';
@@ -101,6 +102,8 @@ export class Game {
         return commitPlan(this, planSurfacePaint(this, c.tiles, c.surface), 'construction');
       case 'terrain':
         return commitPlan(this, planTerrain(this, c.tiles, c.op), 'earthworks');
+      case 'penHole':
+        return commitPenHole(this, c.input);
       default:
         if (isCourseCommand(c)) return handleCourseCommand(this, c);
         return fail(`Unknown command ${(c as { t: string }).t}`);
