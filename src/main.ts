@@ -33,12 +33,16 @@ import { statsPanel } from './ui/panels/statsPanel';
 import { clubhouseTool } from './ui/tools/clubhouseTool';
 import { Tool } from './ui/tools/tool';
 import { ToolController } from './ui/tools/toolController';
+import { deserialize, serialize } from './sim/save';
+import { AUTOSAVE, AUTOSAVE_DAYS, SaveStore } from './sim/saveStore';
+import { savePanel } from './ui/panels/savePanel';
 
-async function startGame(opts: NewGameOptions): Promise<void> {
+const store = new SaveStore();
+
+async function startGame(game: Game): Promise<void> {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const root = document.getElementById('ui') as HTMLElement;
   const app = await createPixiApp(canvas);
-  const game = Game.create(opts);
   const atlas = new Atlas(PALETTES[game.terrain], TREE_COLORS, FEATURE_COLORS);
   const chunks = new ChunkRenderer(app, atlas, game.world);
   const worldLayer = new Container();
@@ -101,6 +105,15 @@ async function startGame(opts: NewGameOptions): Promise<void> {
     showCourse();
   }, 500);
 
+  // save / load (panel only) and autosave every AUTOSAVE_DAYS game days
+  const saveTool: Tool = { id: 'save', label: 'Save', cursor: 'default', panel: () => savePanel(game, store) };
+  let lastAutosave = game.day;
+  game.events.on('day', () => {
+    if (game.day - lastAutosave < AUTOSAVE_DAYS) return;
+    lastAutosave = game.day;
+    store.put(AUTOSAVE, serialize(game)).catch(e => game.notify('warn', `Autosave failed: ${(e as Error).message}`));
+  });
+
   const green = greenTool(game, sel, chunks, () => overlayBar.refresh());
   const holes = holeTool(game, sel, ctx.inspector, () => ctx.tools.setTool(green));
   const toolbar = createToolbar(ctx, [
@@ -115,6 +128,7 @@ async function startGame(opts: NewGameOptions): Promise<void> {
     { make: () => structureTool(game), hotkey: 'u' },
     { make: () => clubhouseTool(game), hotkey: 'c' },
     { make: () => courseOwner, hotkey: 'o' },
+    { make: () => saveTool, hotkey: 'v' },
   ]);
   root.append(hud.el, toolbar, ctx.inspector.el, createNotifications(ctx), h('div', { class: 'panel bottombar' }, overlayBar.el, status));
   game.events.on('cash', () => { if (overlayBar.current() === 'land') overlayBar.refresh(); });
@@ -156,11 +170,26 @@ async function startGame(opts: NewGameOptions): Promise<void> {
     golfers.update(camera, canvas.clientWidth, canvas.clientHeight, performance.now());
     bubbles.update(camera, canvas.clientWidth, canvas.clientHeight);
     ctx.tools.drawPreview();
-    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · O course · click a golfer · Space pause');
+    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · O course · V save · click a golfer · Space pause');
     hudTimer += t.deltaMS;
     if (hudTimer > 200) { hudTimer = 0; hud.refresh(); }
   });
   (window as unknown as { gct: UiContext }).gct = ctx;
 }
 
-showNewGame(document.getElementById('ui') as HTMLElement, o => void startGame(o));
+async function boot(): Promise<void> {
+  const root = document.getElementById('ui') as HTMLElement;
+  const params = new URL(location.href).searchParams;
+  const slot = params.get('load');
+  let error: string | undefined;
+  if (slot !== null) {
+    // drop ?load so a manual refresh doesn't reload the old save over newer play
+    history.replaceState(null, '', location.pathname);
+    const bytes = await store.get(slot).catch(() => null);
+    const r = bytes ? deserialize(bytes) : { ok: false as const, reason: `No save named "${slot}"` };
+    if (r.ok) return startGame(r.value);
+    error = r.reason;
+  }
+  showNewGame(root, (o: NewGameOptions) => void startGame(Game.create(o)), store, error);
+}
+void boot();

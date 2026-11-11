@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "fflate": "^0.8.2",
     "pixi.js": "^8.23.0"
   },
   "devDependencies": {

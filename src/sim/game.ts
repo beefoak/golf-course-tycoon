@@ -89,6 +89,8 @@ export class Game {
   pricing = new Map<number, Pricing>();
   /** most recent golfer thoughts (capped) */
   thoughts: Thought[] = [];
+  /** thoughts of groups still on course (scored at round end) */
+  roundThoughts = new Map<number, Thought[]>();
   /** courseId → rolling stats */
   stats = new Map<number, CourseStats>();
   /** walking traffic per 2×2-tile cell (fades daily) */
@@ -97,7 +99,7 @@ export class Game {
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
   private systems: System[] = [];
-  private notifySeq = 0;
+  notifySeq = 0;
 
   private constructor(o: NewGameOptions, world: World) {
     this.seed = o.seed;
@@ -110,7 +112,15 @@ export class Game {
   }
 
   static create(o: NewGameOptions): Game {
-    const g = new Game(o, generateWorld(o.seed, o.terrain, o.size));
+    return Game.wire(new Game(o, generateWorld(o.seed, o.terrain, o.size)));
+  }
+
+  /** A game around an existing world (save/load fills in the rest). */
+  static fromSave(o: NewGameOptions, world: World): Game {
+    return Game.wire(new Game(o, world));
+  }
+
+  private static wire(g: Game): Game {
     attachLifecycle(g);
     g.registerSystem(groupSystem);
     attachDemand(g);

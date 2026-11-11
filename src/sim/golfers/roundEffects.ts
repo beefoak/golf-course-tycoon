@@ -22,7 +22,7 @@ function pushThought(g: Game, t: Thought, roundThoughts: Thought[]): void {
 
 /** Thoughts after each hole, stats, and opinion changes at the end of the round. */
 export function attachRoundEffects(g: Game): void {
-  const perGroup = new Map<number, Thought[]>();
+  const perGroup = g.roundThoughts;
   g.events.on('holeComplete', ({ groupId, holeId, results }) => {
     const grp = g.groups.find(x => x.id === groupId);
     const hole = g.courses.hole(holeId);

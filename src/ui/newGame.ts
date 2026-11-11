@@ -2,7 +2,9 @@ import { hashString } from '../core/rng';
 import { Difficulty } from '../sim/difficulty';
 import { NewGameOptions } from '../sim/game';
 import { TerrainType } from '../sim/world/terrainTypes';
+import { SaveStore } from '../sim/saveStore';
 import { h } from './dom';
+import { importSaveFile, loadSlot, saveRows } from './panels/savePanel';
 
 const WORDS = ['maple', 'heron', 'quarry', 'brook', 'willow', 'summit', 'dune', 'cedar', 'falcon', 'meadow', 'canyon', 'harbor'];
 
@@ -13,7 +15,7 @@ export function parseSeed(s: string): number {
   return hashString(t.toLowerCase());
 }
 
-export function showNewGame(root: HTMLElement, onStart: (o: NewGameOptions) => void): void {
+export function showNewGame(root: HTMLElement, onStart: (o: NewGameOptions) => void, store?: SaveStore, error?: string): void {
   const pick = () => `${WORDS[Math.floor(Math.random() * WORDS.length)]}-${WORDS[Math.floor(Math.random() * WORDS.length)]}-${Math.floor(Math.random() * 100)}`;
   const seed = h('input', { value: pick() }) as HTMLInputElement;
   const terrain = h('select', null,
@@ -38,7 +40,29 @@ export function showNewGame(root: HTMLElement, onStart: (o: NewGameOptions) => v
     h('div', { style: 'display:flex;gap:6px' }, seed, h('button', { class: 'btn', onclick: () => { seed.value = pick(); } }, '🎲')),
     h('label', null, 'Terrain'), terrain,
     h('label', null, 'Difficulty'), diff,
-    h('div', { class: 'actions' }, h('button', { class: 'btn on', onclick: start }, 'Start new game'))));
+    h('div', { class: 'actions' }, h('button', { class: 'btn on', onclick: start }, 'Start new game')),
+    store ? savesSection(store, error) : null));
   seed.addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
   root.appendChild(back);
+}
+
+/** "Continue" block on the new-game screen: stored slots plus file import. */
+function savesSection(store: SaveStore, error?: string): HTMLElement {
+  const listEl = h('div', null);
+  const msg = h('div', { class: 'warnline', style: error ? '' : 'display:none' }, error ?? '');
+  const refresh = async () => {
+    const list = await store.list().catch(() => []);
+    listEl.replaceChildren(...(list.length ? saveRows(store, list, () => void refresh()) : [h('div', { class: 'muted' }, 'No saved games.')]));
+  };
+  void refresh();
+  return h('div', { style: 'margin-top:12px;border-top:2px solid var(--line);padding-top:8px' },
+    h('label', null, 'Continue a saved game'),
+    msg,
+    listEl,
+    h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: async () => {
+      const r = await importSaveFile(store);
+      if (!r) return;
+      if (!r.ok) { msg.textContent = r.reason; msg.style.display = ''; return; }
+      loadSlot(r.name);
+    } }, 'Import .gctsave file')));
 }

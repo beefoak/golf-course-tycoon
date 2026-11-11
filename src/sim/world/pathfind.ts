@@ -86,6 +86,15 @@ export function clearPathCache(g: Game): void {
   cacheFor(g).clear();
 }
 
+/** First passable tile of a cell in fixed order (centre-ish first), or null if the cell is blocked. */
+function anchor(g: Game, cx: number, cy: number, mode: MoveMode): Vec2 | null {
+  for (const [dx, dy] of [[1, 1], [0, 0], [1, 0], [0, 1]] as const) {
+    const x = cx * CELL + dx, y = cy * CELL + dy;
+    if (Number.isFinite(tileCost(g, x, y, mode))) return { x, y };
+  }
+  return null;
+}
+
 /**
  * A* over tiles (8-neighbour, no corner cutting). Returns tile-space waypoints from `from` to `to`
  * (inclusive, simplified to turning points), or null when unreachable. Results are cached per
@@ -103,9 +112,14 @@ export function findPath(g: Game, from: Vec2, to: Vec2, mode: MoveMode): Vec2[] 
     const c = cache.get(key)!;
     return c ? [{ ...from }, ...c.slice(1, -1).map(p => ({ ...p })), { ...to }] : null;
   }
-  if (!Number.isFinite(tileCost(g, tx, ty, mode))) { cache.set(key, null); return null; }
+  // Search between canonical tiles of the two cells, so a cached result never depends on which
+  // exact tile asked first (keeps simulation deterministic across save/load).
+  const sa = anchor(g, Math.floor(fx / CELL), Math.floor(fy / CELL), mode);
+  const ga = anchor(g, Math.floor(tx / CELL), Math.floor(ty / CELL), mode);
+  if (!ga) { cache.set(key, null); return null; }
+  const s0 = sa ?? { x: Math.floor(fx / CELL) * CELL, y: Math.floor(fy / CELL) * CELL };
 
-  const start = fy * n + fx, goal = ty * n + tx;
+  const start = s0.y * n + s0.x, goal = ga.y * n + ga.x;
   const s = getScratch(n * n);
   const gen = s.gen;
   const costCache = new Map<number, number>();
