@@ -3,7 +3,9 @@ import { clubhouseOf, maxGroupsPerDay } from '../business/buildings';
 import type { Game, System } from '../game';
 import { Golfer } from './golfer';
 import { createGroup } from './groups';
-import { TeeSheet, greenFee, roundHoles, roundOptions } from './teeSheet';
+import { TeeSheet, roundHoles, roundOptions } from './teeSheet';
+import { averagePrice, priceFor, recordFill } from '../business/pricing';
+import { bookMembers, reservedSlots } from '../business/memberships';
 import { isClosedSeason, weatherDemandFactor } from '../turf/weather';
 
 export const BASE_DEMAND = 30;
@@ -20,12 +22,11 @@ export function teeSheetFor(g: Game, courseId: number): TeeSheet {
   return t;
 }
 
-/** Average fee per golfer scaled to 18 holes across the offered round lengths. */
+/** Today's average fee per golfer scaled to 18 holes across the offered round lengths and price bands. */
 export function avgFeePer18(g: Game, course: Course): number {
   const opts = roundOptions(course);
   if (!opts.length) return 0;
-  const p = g.pricing.get(course.id);
-  return opts.reduce((s, len) => s + (greenFee(p, len) * 18) / len, 0) / opts.length;
+  return opts.reduce((s, len) => s + (averagePrice(g, course, g.day, len) * 18) / len, 0) / opts.length;
 }
 
 export function priceFactor(feePer18: number): number {
@@ -42,15 +43,16 @@ export function dailyDemand(g: Game, course: Course): number {
   // the tee sheet caps it: one group of up to 4 per slot
   const opts = roundOptions(course);
   const sheet = teeSheetFor(g, course.id);
-  const capacity = sheet.slots(g.day, Math.min(...opts)).length * 4;
+  const capacity = Math.max(0, sheet.slots(g.day, Math.min(...opts)).length - reservedSlots(g, course.id)) * 4;
   return Math.min(expected, capacity);
 }
 
 function pickGolfer(g: Game, course: Course, busy: Set<number>): Golfer {
+  const members = new Set(g.memberships.get(course.id)?.members.map(x => x.golferId));
   const rng = g.rng;
   const known: Golfer[] = [];
   for (const x of g.golfers.all.values()) {
-    if (busy.has(x.id) || x.lastVisitDay === g.day) continue;
+    if (busy.has(x.id) || x.lastVisitDay === g.day || members.has(x.id)) continue;
     if (x.visits > 0 && (x.opinion[course.id] ?? 0) > -30) known.push(x);
   }
   if (known.length && rng.chance(known.length / (known.length + 40))) {
@@ -80,8 +82,10 @@ export function scheduleDay(g: Game): number {
     }
     const sheet = teeSheetFor(g, course.id);
     sheet.prune(g.day);
+    const memberIds = bookMembers(g, course, sheet);
+    booked += memberIds.size;
     const want = Math.round(dailyDemand(g, course) * g.rng.range(0.8, 1.2));
-    const busy = new Set<number>();
+    const busy = new Set<number>(memberIds);
     let left = want, turnedAway = 0, noParking = 0;
     let cars = maxGroupsPerDay(g, course.id) - g.groups.filter(x => x.courseId === course.id && x.day === g.day).length;
     while (left > 0) {
@@ -97,11 +101,13 @@ export function scheduleDay(g: Game): number {
       const minute = sheet.nearestFree(g.day, preferredMinute(g), len);
       if (minute === null) { turnedAway += size; continue; }
       const grp = createGroup(g, course.id, ids, g.day, minute, roundHoles(course, len));
-      grp.feePerGolfer = greenFee(g.pricing.get(course.id), len);
+      grp.feePerGolfer = priceFor(g, course, g.day, minute, len);
       sheet.book(g.day, minute, grp.id, len, size);
       booked += size;
       cars--;
     }
+    // how full the sheet is today, for the general manager's dynamic pricing
+    recordFill(g, course.id, (sheet.booked.get(g.day)?.size ?? 0) / Math.max(1, sheet.slots(g.day, opts[0]!).length));
     if (turnedAway) g.notify('info', `${course.name}: tee sheet full, ${turnedAway} golfers turned away`);
     if (noParking) {
       const lot = clubhouseOf(g, course.id);
@@ -122,10 +128,10 @@ export function attachDemand(g: Game): void {
   g.registerSystem(demandSystem);
   g.events.on('roundStart', ({ groupId }) => {
     const grp = g.groups.find(x => x.id === groupId);
-    if (!grp || !grp.feePerGolfer) return;
+    if (!grp) return;
     for (const id of grp.golferIds) {
       const golfer = g.golfers.all.get(id);
-      g.ledger.earn(grp.feePerGolfer, 'greenFees', g.day, grp.courseId);
+      if (grp.feePerGolfer) g.ledger.earn(grp.feePerGolfer, 'greenFees', g.day, grp.courseId);
       if (golfer) { golfer.visits++; golfer.totalSpend += grp.feePerGolfer; golfer.lastVisitDay = g.day; }
     }
     g.events.emit('cash', { cash: g.ledger.cash });

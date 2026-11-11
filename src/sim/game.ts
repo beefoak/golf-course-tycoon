@@ -31,7 +31,9 @@ import { Fleet, assignEquipment, attachEquipment, buyEquipment, newFleet, sellEq
 import { attachIrrigation, IrrigationSystem, newIrrigation, placePipe, placePump, placeSprinkler, removeSprinkler, repairSprinkler, setSchedule } from './turf/irrigation';
 import type { CourseStats } from './golfers/stats';
 import type { Thought } from './golfers/thoughts';
-import { Pricing, TeeSheet } from './golfers/teeSheet';
+import { TeeSheet } from './golfers/teeSheet';
+import { Pricing, pricingSystem, setPricing } from './business/pricing';
+import { Memberships, membershipSystem, setMembershipTier } from './business/memberships';
 import { Building, buildingSystem, placeBuilding, upgradeTier } from './business/buildings';
 import type { HoleResult } from './golfers/hole';
 import { handleCourseCommand, isCourseCommand } from './course/courseCommands';
@@ -124,6 +126,8 @@ export class Game {
   carts = new Map<number, CartFleet>();
   /** range bucket price per course (absent = default) */
   rangeBucket = new Map<number, number>();
+  /** courseId → membership tiers and members */
+  memberships = new Map<number, Memberships>();
   /** courses where carts must keep to the paths right now */
   cartPathOnly = new Set<number>();
   workOrders: WorkOrderBook = newOrderBook();
@@ -163,7 +167,9 @@ export class Game {
     attachLifecycle(g);
     attachWeather(g);
     g.registerSystem(groupSystem);
+    g.registerSystem(membershipSystem);
     attachDemand(g);
+    g.registerSystem(pricingSystem);
     attachRoundEffects(g);
     attachTurf(g);
     attachIrrigation(g);
@@ -255,6 +261,10 @@ export class Game {
         return buyCarts(this, c.courseId, c.n);
       case 'setCartFee':
         return setCartFee(this, c.courseId, c.fee);
+      case 'setPricing':
+        return setPricing(this, c.courseId, c.patch);
+      case 'setMembershipTier':
+        return setMembershipTier(this, c.courseId, c.index, c.tier);
       case 'setRangeBucket':
         if (!(c.price >= 0 && c.price <= 100)) return fail('Bucket price must be $0–$100');
         this.rangeBucket.set(c.courseId, Math.round(c.price));

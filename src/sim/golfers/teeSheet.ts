@@ -15,14 +15,8 @@ export function roundHoles(course: Course, len: number): number[] {
   return course.holes.filter(h => h.state === 'open').sort((a, b) => a.number - b.number).slice(0, len).map(h => h.id);
 }
 
-export interface Pricing {
-  /** fee per golfer by round length (holes) */
-  greenFee: Record<number, number>;
-}
-export const DEFAULT_FEE_PER_HOLE = 8;
-export function greenFee(p: Pricing | undefined, holes: number): number {
-  return p?.greenFee[holes] ?? DEFAULT_FEE_PER_HOLE * holes;
-}
+export { DEFAULT_FEE_PER_HOLE, greenFee } from '../business/pricing';
+export type { Pricing } from '../business/pricing';
 
 export interface TeeSlot { minute: number; groupId: number | null }
 
@@ -36,6 +30,8 @@ export class TeeSheet {
   booked = new Map<number, Map<number, number>>();
   /** day → golfers booked */
   golfers = new Map<number, number>();
+  /** day → tee times held for members */
+  reserved = new Map<number, Set<number>>();
 
   lastTee(roundHoles: number): number {
     return DAY_END_MIN - MIN_PER_HOLE * roundHoles;
@@ -46,13 +42,28 @@ export class TeeSheet {
     for (let m = this.firstTee; m <= this.lastTee(roundHoles); m += this.intervalMin) out.push({ minute: m, groupId: b?.get(m) ?? null });
     return out;
   }
-  isFree(day: number, minute: number, roundHoles: number): boolean {
+  isFree(day: number, minute: number, roundHoles: number, member = false): boolean {
     if (minute < this.firstTee || minute > this.lastTee(roundHoles)) return false;
     if ((minute - this.firstTee) % this.intervalMin !== 0) return false;
+    if (!member && this.reserved.get(day)?.has(minute)) return false;
     return !this.booked.get(day)?.has(minute);
   }
-  book(day: number, minute: number, groupId: number, roundHoles = 9, size = 0): boolean {
-    if (!this.isFree(day, minute, roundHoles)) return false;
+  /** Hold `n` free tee times from `from` on for members (public golfers can't book them). */
+  reserve(day: number, n: number, from: number, roundHoles: number): number[] {
+    const out: number[] = [];
+    const start = this.firstTee + Math.max(0, Math.ceil((from - this.firstTee) / this.intervalMin)) * this.intervalMin;
+    for (let m = start; m <= this.lastTee(roundHoles) && out.length < n; m += this.intervalMin) {
+      if (!this.booked.get(day)?.has(m)) out.push(m);
+    }
+    if (out.length) this.reserved.set(day, new Set(out)); else this.reserved.delete(day);
+    return out;
+  }
+  /** Tee times the public can have today. */
+  publicSlots(day: number, roundHoles: number): number {
+    return this.slots(day, roundHoles).length - (this.reserved.get(day)?.size ?? 0);
+  }
+  book(day: number, minute: number, groupId: number, roundHoles = 9, size = 0, member = false): boolean {
+    if (!this.isFree(day, minute, roundHoles, member)) return false;
     this.golfers.set(day, (this.golfers.get(day) ?? 0) + size);
     let b = this.booked.get(day);
     if (!b) { b = new Map(); this.booked.set(day, b); }
@@ -60,15 +71,16 @@ export class TeeSheet {
     return true;
   }
   /** First free slot at or after `prefer` (then before it), or null when the day is full. */
-  nearestFree(day: number, prefer: number, roundHoles: number): number | null {
+  nearestFree(day: number, prefer: number, roundHoles: number, member = false): number | null {
     const last = this.lastTee(roundHoles);
     const start = Math.max(this.firstTee, Math.min(last, this.firstTee + Math.round((prefer - this.firstTee) / this.intervalMin) * this.intervalMin));
-    for (let m = start; m <= last; m += this.intervalMin) if (this.isFree(day, m, roundHoles)) return m;
-    for (let m = start - this.intervalMin; m >= this.firstTee; m -= this.intervalMin) if (this.isFree(day, m, roundHoles)) return m;
+    for (let m = start; m <= last; m += this.intervalMin) if (this.isFree(day, m, roundHoles, member)) return m;
+    for (let m = start - this.intervalMin; m >= this.firstTee; m -= this.intervalMin) if (this.isFree(day, m, roundHoles, member)) return m;
     return null;
   }
   prune(beforeDay: number): void {
     for (const d of this.booked.keys()) if (d < beforeDay) this.booked.delete(d);
     for (const d of this.golfers.keys()) if (d < beforeDay) this.golfers.delete(d);
+    for (const d of this.reserved.keys()) if (d < beforeDay) this.reserved.delete(d);
   }
 }

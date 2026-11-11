@@ -1,3 +1,5 @@
+import type { PricingPatch } from './business/pricing';
+import type { MembershipTier } from './business/memberships';
 import { Vec2 } from '../core/geom';
 import { Surface } from './world/tiles';
 import type { TerrainOp } from './construction/terrain';
@@ -39,6 +41,8 @@ export type Command =
   | { t: 'buyCarts'; courseId: number; n: number }
   | { t: 'setCartFee'; courseId: number; fee: number }
   | { t: 'setRangeBucket'; courseId: number; price: number }
+  | { t: 'setPricing'; courseId: number; patch: PricingPatch }
+  | { t: 'setMembershipTier'; courseId: number; index: number; tier: MembershipTier | null }
   | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }
   | { t: 'setProgramRule'; courseId: number; rule: import('./staff/program').ProgramRule; index?: number }
   | { t: 'removeProgramRule'; courseId: number; index: number }

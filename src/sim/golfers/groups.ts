@@ -54,6 +54,8 @@ export interface Group {
   planned?: { golferId: number; strokes: number; target: Vec2 } | null;
   /** golfers who warmed up on the range before the round */
   warm?: number[];
+  /** members playing on their membership (held tee times) */
+  members?: boolean;
 }
 
 export const WALK_MPS = 1.3;

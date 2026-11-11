@@ -54,7 +54,7 @@ export interface SaveHeader {
   nextGroupId: number;
   buildings: Game['buildings'];
   nextBuildingId: number;
-  teeSheets: [number, { interval: number; firstTee: number; booked: [number, [number, number][]][]; golfers: [number, number][] }][];
+  teeSheets: [number, { interval: number; firstTee: number; booked: [number, [number, number][]][]; golfers: [number, number][]; reserved?: [number, number[]][] }][];
   pricing: [number, unknown][];
   thoughts: Thought[];
   roundThoughts: [number, Thought[]][];
@@ -87,7 +87,7 @@ export function serialize(g: Game): Uint8Array {
     nextGroupId: g.nextGroupId,
     buildings: g.buildings,
     nextBuildingId: g.nextBuildingId,
-    teeSheets: [...g.teeSheets].map(([id, t]) => [id, { interval: t.intervalMin, firstTee: t.firstTee, booked: [...t.booked].map(([d, m]) => [d, [...m]]), golfers: [...t.golfers] }]),
+    teeSheets: [...g.teeSheets].map(([id, t]) => [id, { interval: t.intervalMin, firstTee: t.firstTee, booked: [...t.booked].map(([d, m]) => [d, [...m]]), golfers: [...t.golfers], reserved: [...t.reserved].map(([d, m]) => [d, [...m]]) }]),
     pricing: [...g.pricing],
     thoughts: g.thoughts,
     roundThoughts: [...g.roundThoughts],
@@ -179,6 +179,7 @@ export function deserialize(bytes: Uint8Array): Result<Game> {
       sheet.firstTee = t.firstTee;
       sheet.booked = new Map(t.booked.map(([d, m]) => [d, new Map(m)]));
       sheet.golfers = new Map(t.golfers);
+      sheet.reserved = new Map((t.reserved ?? []).map(([d, m]) => [d, new Set(m)]));
       return [id, sheet];
     }));
     g.pricing = new Map(h.pricing as [number, Game['pricing'] extends Map<number, infer P> ? P : never][]);
