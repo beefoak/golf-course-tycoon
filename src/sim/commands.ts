@@ -31,6 +31,10 @@ export type Command =
   | { t: 'reopenHole'; holeId: number; method?: GrowMethod }
   | { t: 'placeBuilding'; kind: BuildingKind; courseId: number; origin: Vec2 }
   | { t: 'upgradeTier'; buildingId: number }
+  | { t: 'setStockLine'; courseId: number; cat: import('./business/proShop').ItemCategory; patch: { retail?: number; reorderAt?: number; reorderQty?: number } }
+  | { t: 'orderStock'; courseId: number; cat: import('./business/proShop').ItemCategory; qty: number }
+  | { t: 'buyProShopAddon'; courseId: number; addon: import('./business/proShop').ProShopAddon }
+  | { t: 'setSimulatorBays'; courseId: number; bays: number }
   | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }
   | { t: 'setProgramRule'; courseId: number; rule: import('./staff/program').ProgramRule; index?: number }
   | { t: 'removeProgramRule'; courseId: number; index: number }

@@ -32,6 +32,7 @@ import { crewMemberPanel } from './ui/panels/crewMemberPanel';
 import { staffTool } from './ui/panels/staffPanel';
 import { programTool } from './ui/panels/programPanel';
 import { amenityTool } from './ui/panels/buildPanel';
+import { proShopTool } from './ui/panels/proShopPanel';
 import { LIVE_OVERLAYS } from './render/overlays';
 import { ThoughtBubbles } from './ui/bubbles';
 import { golferPanel } from './ui/panels/golferPanel';
@@ -163,6 +164,7 @@ async function startGame(game: Game): Promise<void> {
     { make: () => clubhouseTool(game), hotkey: 'c' },
     { make: () => clubhouseTool(game, 'maintenance'), hotkey: 'm' },
     { make: () => amenityTool(game), hotkey: 'n' },
+    { make: () => proShopTool(game), hotkey: 'y' },
     { make: () => irrigationTool(game), hotkey: 'i' },
     { make: () => staffTool(game), hotkey: 'e' },
     { make: () => programTool(game), hotkey: 'j' },
@@ -217,7 +219,7 @@ async function startGame(game: Game): Promise<void> {
     crew.update(camera, canvas.clientWidth, canvas.clientHeight, performance.now());
     bubbles.update(camera, canvas.clientWidth, canvas.clientHeight);
     ctx.tools.drawPreview();
-    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · M maintenance · N amenities · I irrigation · E staff · J program · O course · V save · click a golfer or crew member · Space pause');
+    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · M maintenance · N amenities · Y pro shop · I irrigation · E staff · J program · O course · V save · click a golfer or crew member · Space pause');
     hudTimer += t.deltaMS;
     if (hudTimer > 200) { hudTimer = 0; hud.refresh(); }
   });

@@ -24,6 +24,7 @@ import { findCandidate } from './staff/market';
 import { MaintenanceProgram, assignZone, createZone, removeProgramRule, setProgramRule } from './staff/program';
 import { WorkOrderBook, createUrgentOrder, newOrderBook, pauseOrder, programSystem } from './staff/workOrders';
 import { staffAgentSystem } from './staff/agents';
+import { ProShop, attachProShop, buyAddon, orderStock, setBays, setStockLine } from './business/proShop';
 import { Fleet, assignEquipment, attachEquipment, buyEquipment, newFleet, sellEquipment, upgradeBuilding } from './staff/equipment';
 import { attachIrrigation, IrrigationSystem, newIrrigation, placePipe, placePump, placeSprinkler, removeSprinkler, repairSprinkler, setSchedule } from './turf/irrigation';
 import type { CourseStats } from './golfers/stats';
@@ -116,6 +117,7 @@ export class Game {
   staffRng: Rng;
   equipment: Fleet = newFleet();
   programs = new Map<number, MaintenanceProgram>();
+  proShops = new Map<number, ProShop>();
   workOrders: WorkOrderBook = newOrderBook();
   /** shot-time multiplier per course from starter/marshal (recomputed each minute) */
   pacePush = new Map<number, number>();
@@ -160,6 +162,7 @@ export class Game {
     g.registerSystem(practicesSystem);
     g.registerSystem(moraleSystem);
     attachEquipment(g);
+    attachProShop(g);
     g.registerSystem(programSystem);
     g.registerSystem(staffAgentSystem);
     g.registerSystem(buildingSystem);
@@ -228,6 +231,14 @@ export class Game {
         return placeBuilding(this, c.kind, c.courseId, c.origin);
       case 'upgradeTier':
         return upgradeTier(this, c.buildingId);
+      case 'setStockLine':
+        return setStockLine(this, c.courseId, c.cat, c.patch);
+      case 'orderStock':
+        return orderStock(this, c.courseId, c.cat, c.qty);
+      case 'buyProShopAddon':
+        return buyAddon(this, c.courseId, c.addon);
+      case 'setSimulatorBays':
+        return setBays(this, c.courseId, c.bays);
       case 'setProgramRule':
         return setProgramRule(this, c.courseId, c.rule, c.index);
       case 'removeProgramRule':
