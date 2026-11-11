@@ -1,6 +1,6 @@
 import { EventBus } from '../core/events';
 import { Vec2 } from '../core/geom';
-import { Result, fail } from '../core/result';
+import { Result, fail, ok } from '../core/result';
 import { Rng } from '../core/rng';
 import { GameClock } from './clock';
 import { Command } from './commands';
@@ -13,6 +13,8 @@ import { planTerrain } from './construction/terrain';
 import { CourseRegistry } from './course/course';
 import { handleCourseCommand, isCourseCommand } from './course/courseCommands';
 import { commitPenHole } from './course/pen';
+import { computeStakes, planBunker, planDigWater, planFillWater, planRemoveTrees, planTrees } from './construction/hazards';
+import { Structure, placeStructure, planBridge, planPath } from './construction/paths';
 import { Surface } from './world/tiles';
 import { PARCEL_TILES } from '../core/units';
 import { generateWorld } from './world/mapgen';
@@ -60,6 +62,9 @@ export class Game {
   events = new EventBus<GameEvents>();
   soilStockpileM3 = 0;
   courses = new CourseRegistry();
+  structures: Structure[] = [];
+  /** consumed by the reputation system (Task 40) */
+  pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
   private systems: System[] = [];
   private notifySeq = 0;
 
@@ -104,6 +109,35 @@ export class Game {
         return commitPlan(this, planTerrain(this, c.tiles, c.op), 'earthworks');
       case 'penHole':
         return commitPenHole(this, c.input);
+      case 'bunker':
+        return commitPlan(this, planBunker(this, c.tiles, c.sand), 'construction');
+      case 'digWater':
+        return commitPlan(this, planDigWater(this, c.tiles), 'earthworks');
+      case 'fillWater':
+        return commitPlan(this, planFillWater(this, c.tiles), 'earthworks');
+      case 'plantTrees':
+        return commitPlan(this, planTrees(this, c.tiles, c.species, c.density), 'construction');
+      case 'removeTrees':
+        return commitPlan(this, planRemoveTrees(this, c.tiles), 'construction');
+      case 'path':
+        return commitPlan(this, planPath(this, c.tiles, c.tier), 'construction');
+      case 'bridge':
+        return commitPlan(this, planBridge(this, c.tiles), 'construction');
+      case 'placeStructure':
+        return placeStructure(this, c.kind, c.at);
+      case 'refreshStakes': {
+        const h = this.courses.hole(c.holeId);
+        if (!h) return fail('No such hole');
+        h.stakes = computeStakes(this, h);
+        return ok(h.stakes);
+      }
+      case 'setStakeOverride': {
+        const h = this.courses.hole(c.holeId);
+        if (!h) return fail('No such hole');
+        h.stakeOverrides.add.push({ kind: c.kind, at: { x: Math.round(c.at.x), y: Math.round(c.at.y) } });
+        h.stakes = computeStakes(this, h);
+        return ok(h.stakes);
+      }
       default:
         if (isCourseCommand(c)) return handleCourseCommand(this, c);
         return fail(`Unknown command ${(c as { t: string }).t}`);

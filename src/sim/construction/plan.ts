@@ -9,6 +9,8 @@ export interface TileChange {
   elevation?: number;
   treeSpecies?: number;
   feature?: Feature;
+  /** per-surface material code (bunker sand type, path tier) stored in world.firmness */
+  material?: number;
 }
 
 export interface EditPlan {
@@ -19,6 +21,8 @@ export interface EditPlan {
   stockpileDelta: number;
   /** unique human-readable reasons for skipped tiles */
   reasons: string[];
+  /** extra side effects to run only if the plan is committed */
+  onCommit?: (g: Game) => void;
 }
 
 export function emptyPlan(): EditPlan {
@@ -42,12 +46,14 @@ export function commitPlan(g: Game, p: EditPlan, cat: TxCategory): Result {
     if (c.elevation !== undefined) w.elevation[c.i] = c.elevation;
     if (c.treeSpecies !== undefined) { w.treeSpecies[c.i] = c.treeSpecies; if (c.treeSpecies) w.treeAgeDays[c.i] = 0; }
     if (c.feature !== undefined) w.feature[c.i] = c.feature;
+    if (c.material !== undefined) w.firmness[c.i] = c.material;
     const x = c.i % w.size, y = Math.floor(c.i / w.size);
     w.markDirty(x, y);
     // hill shading of neighbours changes with elevation
     if (c.elevation !== undefined) { w.markDirty(Math.min(w.size - 1, x + 1), y); w.markDirty(x, Math.min(w.size - 1, y + 1)); w.markDirty(Math.max(0, x - 1), y); w.markDirty(x, Math.max(0, y - 1)); }
   }
   g.soilStockpileM3 = Math.max(0, g.soilStockpileM3 + p.stockpileDelta);
+  p.onCommit?.(g);
   g.events.emit('edit', { tiles: p.changes.map(c => c.i) });
   return ok(undefined);
 }
