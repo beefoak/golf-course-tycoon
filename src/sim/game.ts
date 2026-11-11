@@ -7,6 +7,8 @@ import { Command } from './commands';
 import { Difficulty, STARTING_CASH } from './difficulty';
 import { Ledger } from './economy/ledger';
 import { ParcelGrid } from './land/parcels';
+import { commitPlan } from './construction/plan';
+import { planSurfacePaint } from './construction/paint';
 import { generateWorld } from './world/mapgen';
 import { TerrainType } from './world/terrainTypes';
 import { World } from './world/world';
@@ -30,6 +32,7 @@ export type GameEvents = {
   minute: { minute: number };
   notify: Notification;
   cash: { cash: number };
+  edit: { tiles: number[] };
 };
 
 export interface System {
@@ -88,6 +91,8 @@ export class Game {
         return this.parcels.buy(c.px, c.py, this.ledger, this.day);
       case 'sellParcel':
         return this.parcels.sell(c.px, c.py, this.ledger, this.day, this.sellBlockedReason(c.px, c.py));
+      case 'paint':
+        return commitPlan(this, planSurfacePaint(this, c.tiles, c.surface), 'construction');
       default:
         return fail(`Unknown command ${(c as { t: string }).t}`);
     }
@@ -96,6 +101,11 @@ export class Game {
   /** Extended by later tasks (holes, buildings on the parcel). */
   protected sellBlockedReason(_px: number, _py: number): string | undefined {
     return undefined;
+  }
+
+  /** Why tiles of this hole can't be edited right now (open/closing), or null. Filled in by Task 10/14. */
+  holeLockReason(_holeId: number): string | null {
+    return null;
   }
 
   tick(): void {
