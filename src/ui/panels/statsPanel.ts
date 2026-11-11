@@ -6,6 +6,7 @@ import { statsFor } from '../../sim/golfers/roundEffects';
 import { clubhouseOf } from '../../sim/business/buildings';
 import { DEFAULT_BANDS, DEFAULT_WEEKEND, bandAt, hasManager, priceFor } from '../../sim/business/pricing';
 import { MembershipTier, membershipsOf } from '../../sim/business/memberships';
+import { ratingOf } from '../../sim/rating/courseRating';
 import { Command } from '../../sim/commands';
 import { h, money } from '../dom';
 import { INPUT_STYLE } from '../tools/panelTool';
@@ -32,12 +33,14 @@ export function statsPanel(g: Game, courseId: number, refresh: () => void): HTML
     return h('div', { class: 'row' }, h('span', { class: 'muted' }, `${len}-hole green fee $`), input);
   });
 
+  const rating = ratingOf(g, courseId);
   const holeRows = course.holes.slice().sort((a, b) => a.number - b.number).map(hole => {
     const n = st.playedCount(hole.id);
     const vs = st.holeAvgVsPar(hole.id);
     return h('tr', null,
       h('td', null, `#${hole.number}`),
       h('td', null, String(holePar(hole))),
+      h('td', null, String(rating?.strokeIndex[hole.id] ?? '—')),
       h('td', null, n ? st.holeAverage(hole.id).toFixed(2) : '—'),
       h('td', { style: n ? (vs > 0.8 ? 'color:var(--bad)' : vs < 0.2 ? 'color:var(--accent)' : '') : '' }, n ? `${vs >= 0 ? '+' : ''}${vs.toFixed(2)}` : ''),
       h('td', null, n ? `${Math.round(st.threePuttRate(hole.id) * 100)}%` : ''),
@@ -102,9 +105,10 @@ export function statsPanel(g: Game, courseId: number, refresh: () => void): HTML
     h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Booked today'), h('span', null, `${golfersToday} golfers`)),
     h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Groups on course'), h('span', null, String(onCourse))),
     h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Green fees (7 days)'), h('span', null, money(fees))),
+    rating ? h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Course rating / slope'), h('span', null, `${rating.courseRating.toFixed(1)} / ${rating.slope}`)) : null,
     h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Avg round'), h('span', null, avgRound ? `${Math.floor(avgRound / 60)}h ${Math.round(avgRound % 60)}m` : '—')),
     h('label', null, 'Scoring (last 28 days)'),
-    h('table', { class: 'grid' }, h('tr', null, h('th', null, 'Hole'), h('th', null, 'Par'), h('th', null, 'Avg'), h('th', null, '±'), h('th', null, '3-putt'), h('th', null, 'Time')), ...holeRows),
+    h('table', { class: 'grid' }, h('tr', null, h('th', null, 'Hole'), h('th', null, 'Par'), h('th', { title: 'Stroke index (1 = hardest)' }, 'SI'), h('th', null, 'Avg'), h('th', null, '±'), h('th', null, '3-putt'), h('th', null, 'Time')), ...holeRows),
     hardest.length ? h('div', { class: 'muted', style: 'margin-top:6px' }, `Hardest: ${hardest.map(x => `#${x!.number}`).join(', ')}`) : null,
   );
 }
