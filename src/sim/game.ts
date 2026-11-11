@@ -34,6 +34,8 @@ import type { Thought } from './golfers/thoughts';
 import { TeeSheet } from './golfers/teeSheet';
 import { Pricing, pricingSystem, setPricing } from './business/pricing';
 import { Memberships, membershipSystem, setMembershipTier } from './business/memberships';
+import { FinanceState, attachFinance, newFinance } from './economy/finance';
+import { booksSystem, loanSystem, repayLoan, takeLoan } from './economy/loans';
 import { Building, buildingSystem, placeBuilding, upgradeTier } from './business/buildings';
 import type { HoleResult } from './golfers/hole';
 import { handleCourseCommand, isCourseCommand } from './course/courseCommands';
@@ -75,6 +77,7 @@ export type GameEvents = {
   thought: Thought;
   staff: { id: number };
   noParking: { courseId: number; golfers: number };
+  gameOver: { reason: string };
 };
 
 export interface System {
@@ -128,6 +131,8 @@ export class Game {
   rangeBucket = new Map<number, number>();
   /** courseId → membership tiers and members */
   memberships = new Map<number, Memberships>();
+  /** loans, closing cash and the logs behind the financial reports */
+  finance: FinanceState = newFinance();
   /** courses where carts must keep to the paths right now */
   cartPathOnly = new Set<number>();
   workOrders: WorkOrderBook = newOrderBook();
@@ -164,6 +169,7 @@ export class Game {
   }
 
   private static wire(g: Game): Game {
+    g.registerSystem(booksSystem);
     attachLifecycle(g);
     attachWeather(g);
     g.registerSystem(groupSystem);
@@ -182,6 +188,8 @@ export class Game {
     g.registerSystem(programSystem);
     g.registerSystem(staffAgentSystem);
     g.registerSystem(buildingSystem);
+    attachFinance(g);
+    g.registerSystem(loanSystem);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }
@@ -261,6 +269,10 @@ export class Game {
         return buyCarts(this, c.courseId, c.n);
       case 'setCartFee':
         return setCartFee(this, c.courseId, c.fee);
+      case 'takeLoan':
+        return takeLoan(this, c.amount, c.termDays);
+      case 'repayLoan':
+        return repayLoan(this, c.id, c.amount);
       case 'setPricing':
         return setPricing(this, c.courseId, c.patch);
       case 'setMembershipTier':

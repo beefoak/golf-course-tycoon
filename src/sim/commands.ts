@@ -42,6 +42,8 @@ export type Command =
   | { t: 'setCartFee'; courseId: number; fee: number }
   | { t: 'setRangeBucket'; courseId: number; price: number }
   | { t: 'setPricing'; courseId: number; patch: PricingPatch }
+  | { t: 'takeLoan'; amount: number; termDays: number }
+  | { t: 'repayLoan'; id: number; amount?: number }
   | { t: 'setMembershipTier'; courseId: number; index: number; tier: MembershipTier | null }
   | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }
   | { t: 'setProgramRule'; courseId: number; rule: import('./staff/program').ProgramRule; index?: number }

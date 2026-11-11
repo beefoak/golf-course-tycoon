@@ -11,7 +11,8 @@ import { findPath } from '../world/pathfind';
 import { EQUIPMENT, workRate } from './equipment';
 import { errorRate } from './morale';
 import { SkillId } from './roles';
-import { Staff, isWorking, startPos } from './staff';
+import { Staff, isWorking, shiftHours, startPos } from './staff';
+import { SUPPLY_PER_TILE, logHoleWork } from '../economy/finance';
 import { WorkOrder } from './workOrders';
 
 /** Crew stop work while a group is this close (40 m). */
@@ -132,7 +133,10 @@ function work(g: Game, s: Staff, o: WorkOrder): void {
   s.fatigue = Math.min(100, s.fatigue + FATIGUE_PER_HOUR * hours);
   const e = s.equipmentId !== null ? g.equipment.all.find(x => x.id === s.equipmentId) : undefined;
   if (e) e.hoursToday += hours;
+  // the hole pays for the time spent on it (and the supplies the job uses)
+  const labour = hours * s.wagePerDay / Math.max(1, shiftHours(s));
   if (!o.tiles.length) {
+    logHoleWork(g, o.courseId, o.holeId, labour, 0);
     // per-hole jobs (cups, tee markers) take fixed time
     a.carry += hours * pace;
     if (a.carry >= o.laborHours) {
@@ -146,11 +150,12 @@ function work(g: Game, s: Staff, o: WorkOrder): void {
   a.carry += workRate(g, s, o.practice) * pace * hours;
   const err = errorRate(s) + (skill < 0.3 ? (0.3 - skill) * 0.5 : 0);
   const w = g.world;
+  const from = o.progress;
   while (a.carry >= 1 && o.progress < o.tiles.length) {
     const i = o.tiles[o.progress]!;
     // the next tile is out of reach: walk there first
     const p = tileXY(g, i);
-    if (Math.hypot(p.x - s.pos.x, p.y - s.pos.y) > 3) { walkTo(g, s, p); return; }
+    if (Math.hypot(p.x - s.pos.x, p.y - s.pos.y) > 3) { walkTo(g, s, p); break; }
     a.carry -= 1;
     o.progress++;
     s.pos = p;
@@ -165,6 +170,7 @@ function work(g: Game, s: Staff, o: WorkOrder): void {
     }
     applyPractice(g, o.practice, [i], o.params?.mowMm !== undefined ? { mm: o.params.mowMm } : {});
   }
+  logHoleWork(g, o.courseId, o.holeId, labour, (o.progress - from) * (SUPPLY_PER_TILE[o.practice] ?? 0));
   if (o.progress >= o.tiles.length) { o.status = 'done'; a.carry = 0; }
 }
 

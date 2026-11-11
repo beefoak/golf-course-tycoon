@@ -1,3 +1,4 @@
+import { logWage } from '../economy/finance';
 import type { Game, System } from '../game';
 import { marketWage } from './roles';
 import { Staff, shiftHours, skillAvg } from './staff';
@@ -48,6 +49,7 @@ export const moraleSystem: System = {
     const quits: Staff[] = [];
     for (const s of g.staff.all) {
       g.ledger.charge(s.wagePerDay, 'wages', g.day, s.courseId);
+      logWage(g, s.role, s.courseId, s.wagePerDay);
       s.morale = Math.max(0, Math.min(100, Math.round((s.morale + moraleDelta(g, s)) * 10) / 10));
       s.fatigue = Math.max(0, s.fatigue - 40);
       if (g.staffRng.chance(quitChance(s))) quits.push(s);
