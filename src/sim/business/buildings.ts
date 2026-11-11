@@ -5,7 +5,7 @@ import { emptyPlan } from '../construction/plan';
 import type { Game } from '../game';
 import { Feature, Surface } from '../world/tiles';
 
-export type BuildingKind = 'clubhouse';
+export type BuildingKind = 'clubhouse' | 'maintenance';
 
 export interface Building {
   id: number;
@@ -17,12 +17,15 @@ export interface Building {
   h: number;
   /** walkable tile in front of the building where golfers arrive and leave */
   door: Vec2;
+  /** upgrades bought (maintenance: storage, workshop, staffRoom, chemicalStore) */
+  upgrades?: string[];
 }
 
 export interface BuildingDef { w: number; h: number; cost: number[]; roadAdjacent: boolean; label: string }
 
 export const BUILDING_DEFS: Record<BuildingKind, BuildingDef> = {
   clubhouse: { w: 15, h: 10, cost: [250_000, 900_000, 2_500_000], roadAdjacent: true, label: 'Clubhouse' },
+  maintenance: { w: 12, h: 8, cost: [180_000], roadAdjacent: false, label: 'Maintenance building' },
 };
 
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
@@ -63,7 +66,7 @@ export function placeBuilding(g: Game, kind: BuildingKind, courseId: number, ori
   const def = BUILDING_DEFS[kind];
   const course = g.courses.get(courseId);
   if (!course) return fail('No such course');
-  if (kind === 'clubhouse' && g.buildings.some(b => b.kind === 'clubhouse' && b.courseId === courseId)) return fail(`${course.name} already has a clubhouse`);
+  if (g.buildings.some(b => b.kind === kind && b.courseId === courseId)) return fail(`${course.name} already has a ${def.label.toLowerCase()}`);
   const fp = checkFootprint(g, kind, origin);
   if (!fp.ok) return fp;
   const plan = emptyPlan();

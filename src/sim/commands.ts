@@ -31,6 +31,10 @@ export type Command =
   | { t: 'reopenHole'; holeId: number; method?: GrowMethod }
   | { t: 'placeBuilding'; kind: BuildingKind; courseId: number; origin: Vec2 }
   | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }
+  | { t: 'buyEquipment'; courseId: number; kind: import('./staff/equipment').EquipmentKind; tier: 1 | 2 | 3 }
+  | { t: 'sellEquipment'; id: number }
+  | { t: 'assignEquipment'; id: number; staffId: number | null }
+  | { t: 'upgradeBuilding'; buildingId: number; upgrade: import('./staff/equipment').MaintenanceUpgrade }
   | { t: 'hireStaff'; candidateId: string; courseId: number }
   | { t: 'fireStaff'; id: number }
   | { t: 'trainStaff'; id: number; skill: import('./staff/roles').SkillId }

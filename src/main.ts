@@ -128,6 +128,7 @@ async function startGame(game: Game): Promise<void> {
     { make: () => pathTool(game), hotkey: 'k' },
     { make: () => structureTool(game), hotkey: 'u' },
     { make: () => clubhouseTool(game), hotkey: 'c' },
+    { make: () => clubhouseTool(game, 'maintenance'), hotkey: 'm' },
     { make: () => irrigationTool(game), hotkey: 'i' },
     { make: () => courseOwner, hotkey: 'o' },
     { make: () => saveTool, hotkey: 'v' },
@@ -179,7 +180,7 @@ async function startGame(game: Game): Promise<void> {
     golfers.update(camera, canvas.clientWidth, canvas.clientHeight, performance.now());
     bubbles.update(camera, canvas.clientWidth, canvas.clientHeight);
     ctx.tools.drawPreview();
-    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · I irrigation · O course · V save · click a golfer · Space pause');
+    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · M maintenance · I irrigation · O course · V save · click a golfer · Space pause');
     hudTimer += t.deltaMS;
     if (hudTimer > 200) { hudTimer = 0; hud.refresh(); }
   });

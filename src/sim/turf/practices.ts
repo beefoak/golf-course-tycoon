@@ -4,6 +4,7 @@ import { Surface } from '../world/tiles';
 import { TILE_FLAG } from '../world/world';
 import { Grass, grassSpec } from './grasses';
 import { mowTargetMm, scalpDamage, turfSettings } from './turf';
+import { sprayAllowed } from '../staff/equipment';
 
 export type Practice = 'mow' | 'roll' | 'aerate' | 'topdress' | 'spray' | 'fertilize' | 'handWater' | 'rakeBunker' | 'changeCup' | 'fixDivots' | 'moveTeeMarkers';
 export const PRACTICES: Practice[] = ['mow', 'roll', 'aerate', 'topdress', 'spray', 'fertilize', 'handWater', 'rakeBunker', 'changeCup', 'fixDivots', 'moveTeeMarkers'];
@@ -174,6 +175,7 @@ export function practiceCommand(g: Game, practice: Practice, tiles: number[], op
   if (!PRACTICES.includes(practice)) return fail('Unknown practice');
   const n = g.world.grass.length;
   if (tiles.some(i => !Number.isInteger(i) || i < 0 || i >= n)) return fail('Tiles out of range');
+  if (practice === 'spray' && tiles.length && !sprayAllowed(g, g.world.courseId[tiles[0]!]! || g.courses.list[0]?.id || 0)) return fail('Spraying needs a chemical store at the maintenance building');
   applyPractice(g, practice, tiles, opts);
   return ok(undefined);
 }

@@ -21,6 +21,7 @@ import { practiceCommand, practicesSystem } from './turf/practices';
 import { StaffRoster, setShift, setWage, train } from './staff/staff';
 import { moraleSystem } from './staff/morale';
 import { findCandidate } from './staff/market';
+import { Fleet, assignEquipment, attachEquipment, buyEquipment, newFleet, sellEquipment, upgradeBuilding } from './staff/equipment';
 import { attachIrrigation, IrrigationSystem, newIrrigation, placePipe, placePump, placeSprinkler, removeSprinkler, repairSprinkler, setSchedule } from './turf/irrigation';
 import type { CourseStats } from './golfers/stats';
 import type { Thought } from './golfers/thoughts';
@@ -109,6 +110,7 @@ export class Game {
   irrigation: IrrigationSystem;
   staff = new StaffRoster();
   staffRng: Rng;
+  equipment: Fleet = newFleet();
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
@@ -147,6 +149,7 @@ export class Game {
     attachIrrigation(g);
     g.registerSystem(practicesSystem);
     g.registerSystem(moraleSystem);
+    attachEquipment(g);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }
@@ -210,6 +213,14 @@ export class Game {
         return placeStructure(this, c.kind, c.at);
       case 'placeBuilding':
         return placeBuilding(this, c.kind, c.courseId, c.origin);
+      case 'buyEquipment':
+        return buyEquipment(this, c.courseId, c.kind, c.tier);
+      case 'sellEquipment':
+        return sellEquipment(this, c.id);
+      case 'assignEquipment':
+        return assignEquipment(this, c.id, c.staffId);
+      case 'upgradeBuilding':
+        return upgradeBuilding(this, c.buildingId, c.upgrade);
       case 'hireStaff': {
         const cand = findCandidate(this, c.candidateId);
         if (!cand) return fail('That candidate is no longer available');
