@@ -11,6 +11,8 @@ export interface TileChange {
   feature?: Feature;
   /** per-surface material code (bunker sand type, path tier) stored in world.firmness */
   material?: number;
+  /** grass type (turf/grasses.ts Grass) */
+  grass?: number;
 }
 
 export interface EditPlan {
@@ -47,6 +49,7 @@ export function commitPlan(g: Game, p: EditPlan, cat: TxCategory): Result {
     if (c.treeSpecies !== undefined) { w.treeSpecies[c.i] = c.treeSpecies; if (c.treeSpecies) w.treeAgeDays[c.i] = 0; }
     if (c.feature !== undefined) w.feature[c.i] = c.feature;
     if (c.material !== undefined) w.firmness[c.i] = c.material;
+    if (c.grass !== undefined) w.grass[c.i] = c.grass;
     const x = c.i % w.size, y = Math.floor(c.i / w.size);
     w.markDirty(x, y);
     // hill shading of neighbours changes with elevation

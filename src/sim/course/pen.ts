@@ -162,6 +162,8 @@ export function commitPenHole(g: Game, input: PenInput): Result<Hole> {
     g.world.holeId[i] = h.id;
     g.world.courseId[i] = h.courseId;
   }
+  // hole membership changed: let caches (paths, turf index) rebuild
+  g.events.emit('edit', { tiles: region.filter(i => !skipped.has(i)) });
   // pins must sit on green; drop any that landed on a skipped tile
   h.pins = h.pins.filter(p => g.world.inBounds(p.x, p.y) && g.world.surface[g.world.idx(p.x, p.y)] === Surface.Green);
   return ok(h);

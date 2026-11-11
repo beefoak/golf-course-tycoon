@@ -15,6 +15,7 @@ import { GolferPool } from './golfers/generate';
 import { Group, countGroupsOnHole, groupSystem } from './golfers/groups';
 import { attachDemand } from './golfers/demand';
 import { attachRoundEffects } from './golfers/roundEffects';
+import { attachTurf, newTurfState, setGrass, TurfState } from './turf/turf';
 import type { CourseStats } from './golfers/stats';
 import type { Thought } from './golfers/thoughts';
 import { Pricing, TeeSheet } from './golfers/teeSheet';
@@ -95,6 +96,7 @@ export class Game {
   stats = new Map<number, CourseStats>();
   /** walking traffic per 2×2-tile cell (fades daily) */
   footfall = new Uint16Array(0);
+  turf: TurfState = newTurfState();
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
@@ -125,6 +127,7 @@ export class Game {
     g.registerSystem(groupSystem);
     attachDemand(g);
     attachRoundEffects(g);
+    attachTurf(g);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }
@@ -188,6 +191,8 @@ export class Game {
         return placeStructure(this, c.kind, c.at);
       case 'placeBuilding':
         return placeBuilding(this, c.kind, c.courseId, c.origin);
+      case 'setGrass':
+        return setGrass(this, c.tiles, c.grass, c.method);
       case 'setGreenFee': {
         if (!this.courses.get(c.courseId)) return fail('No such course');
         if (!Number.isInteger(c.holes) || c.holes < 1 || c.holes > 36) return fail('Round length must be 1–36 holes');

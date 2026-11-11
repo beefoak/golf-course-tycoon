@@ -10,6 +10,7 @@ import { BallOutcome } from './ballPhysics';
 import { ClubId } from './clubs';
 import { Golfer } from './golfer';
 import { greenStimp } from './greenSpeed';
+import { addWear } from '../turf/turf';
 import { Lie, lieAt } from './lie';
 import { putt } from './putting';
 import { simulateShot } from './shot';
@@ -129,12 +130,15 @@ export function playStroke(g: Game, golfer: Golfer, hole: Hole, p: HolePlay, rng
   let rec: ShotRecord;
   if (isPutt(g, p)) {
     if (r.putts === 0 && p.strokes <= p.par - 2 && lieAt(g.world, p.pos) === 'green') r.gir = true;
+    addWear(g, p.pos.x, p.pos.y, 1);
     const pt = putt(g, p.pos, p.pin, golfer, p.stimp, rng);
     p.strokes++; r.putts++;
     rec = { from: p.pos, landing: pt.final, final: pt.final, club: 'P', result: 'ok', penalty: 0, next: pt.final };
     if (pt.holed) p.holed = true;
   } else {
     const lie = lieAt(g.world, p.pos);
+    // divots: full shots off tees and fairways scar the turf
+    if (lie === 'tee' || lie === 'fairway') addWear(g, p.pos.x, p.pos.y, 4);
     const plan = planShot(g, golfer, p.pos, lie, hole, p.pin, rng);
     const out = simulateShot(g, { from: p.pos, target: plan.target, club: plan.club, lie, golfer, wind }, rng);
     p.strokes++;

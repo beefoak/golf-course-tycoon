@@ -4,6 +4,8 @@ import { TILE_M } from '../../core/units';
 import { TICKS_PER_MIN } from '../clock';
 import type { Game, System } from '../game';
 import { findPath } from '../world/pathfind';
+import { Surface } from '../world/tiles';
+import { addWear } from '../turf/turf';
 import { center } from './ai';
 import { Golfer } from './golfer';
 import { HolePlay, HoleResult, ShotRecord, isPutt, nextTarget, pickUp, playStroke, startHole } from './hole';
@@ -82,6 +84,16 @@ function footstep(g: Game, p: Vec2): void {
   if (g.footfall[i]! < 65535) g.footfall[i]!++;
 }
 
+/** Feet compact greens; carts scuff turf when they leave the path. */
+function trample(g: Game, grp: Group): void {
+  const w = g.world;
+  const x = Math.floor(grp.pos.x), y = Math.floor(grp.pos.y);
+  if (!w.inBounds(x, y)) return;
+  const s = w.surface[w.idx(x, y)] as Surface;
+  if (s === Surface.Green) addWear(g, x, y, 1);
+  else if (grp.usesCart && s !== Surface.Path) addWear(g, x, y, 2);
+}
+
 const golferOf = (g: Game, id: number): Golfer => {
   const x = g.golfers.all.get(id);
   if (!x) throw new Error(`No golfer ${id}`);
@@ -121,7 +133,7 @@ function walkTo(g: Game, grp: Group, to: Vec2): void {
 }
 
 function advance(g: Game, grp: Group): void {
-  if (grp.path.length) footstep(g, grp.pos);
+  if (grp.path.length) { footstep(g, grp.pos); trample(g, grp); }
   let left = ((grp.usesCart ? CART_MPS : WALK_MPS) * SEC_PER_TICK) / TILE_M;
   while (left > 0 && grp.path.length) {
     const t = grp.path[0]!;

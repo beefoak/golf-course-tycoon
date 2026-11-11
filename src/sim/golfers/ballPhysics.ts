@@ -27,7 +27,7 @@ export function rollFriction(g: Game, i: number): number {
     case Surface.Green: return 0.055 * (10 / greenStimp(g, w.holeId[i]!));
     case Surface.Fringe: return 0.09;
     case Surface.Tee:
-    case Surface.Fairway: return 0.12 * (1.5 - w.firmness[i]! / 100);
+    case Surface.Fairway: return 0.12 * (1.5 - w.firmness[i]! / 100) * wet(w.moisture[i]!);
     case Surface.FirstCut: return 0.2;
     case Surface.Path: return 0.08;
     case Surface.Rough:
@@ -39,6 +39,11 @@ export function rollFriction(g: Game, i: number): number {
   }
 }
 
+/** Soggy turf grips the ball: 1 up to 60% moisture, rising to 1.67 when saturated. */
+function wet(m: number): number {
+  return 1 + Math.max(0, m - 60) / 60;
+}
+
 /** Flat-ground roll multiplier on the landing surface (fraction of the base roll). */
 function landingRollFactor(g: Game, i: number): number {
   const w = g.world;
@@ -46,7 +51,7 @@ function landingRollFactor(g: Game, i: number): number {
     case Surface.Green: return greenStimp(g, w.holeId[i]!) / 10;
     case Surface.Tee:
     case Surface.Fairway:
-    case Surface.Fringe: return Math.max(0.4, Math.min(1.6, w.firmness[i]! / 50));
+    case Surface.Fringe: return Math.max(0.4, Math.min(1.6, w.firmness[i]! / 50)) / wet(w.moisture[i]!);
     case Surface.FirstCut: return 0.6;
     case Surface.Path: return 1.5;
     case Surface.Bunker: return 0;

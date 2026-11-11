@@ -10,20 +10,14 @@ import { CourseStats } from './golfers/stats';
 import { TeeSheet } from './golfers/teeSheet';
 import { Thought } from './golfers/thoughts';
 import { World } from './world/world';
+import { saveRegistry } from './saveRegistry';
 
 export const SAVE_VERSION = 1;
 const MAGIC = 'GCTS';
 
-/** Later systems register their own state here (every task that adds state must). */
-export interface Saveable {
-  key: string;
-  save(g: Game): unknown;
-  load(g: Game, data: unknown, version: number): void;
-}
-const registry = new Map<string, Saveable>();
-export function registerSaveable(s: Saveable): void {
-  registry.set(s.key, s);
-}
+export { registerSaveable } from './saveRegistry';
+export type { Saveable } from './saveRegistry';
+const registry = saveRegistry;
 
 /** Upgrades a header from version v to v + 1. */
 export const MIGRATIONS: Record<number, (json: SaveHeader) => SaveHeader> = {};
