@@ -21,7 +21,11 @@ export class ToolController {
       if (e.button !== 0) return;
       this.active?.onPointerUp?.(tile(e), e);
     });
-    canvas.addEventListener('dblclick', e => this.active?.onPointerUp?.(tile(e as PointerEvent), Object.assign(e, { detail: 2 }) as unknown as PointerEvent));
+    // MouseEvent.detail is a read-only getter, so pass a plain object that reports detail 2
+    canvas.addEventListener('dblclick', e => {
+      const fake = { button: 0, detail: 2, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, offsetX: e.offsetX, offsetY: e.offsetY } as unknown as PointerEvent;
+      this.active?.onPointerUp?.(tile(e as PointerEvent), fake);
+    });
     window.addEventListener('keydown', e => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
       if (e.key === 'Escape' && this.active && !this.active.onKey) { this.setTool(null); return; }

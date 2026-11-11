@@ -13,6 +13,7 @@ import { planTerrain } from './construction/terrain';
 import { CourseRegistry } from './course/course';
 import { handleCourseCommand, isCourseCommand } from './course/courseCommands';
 import { commitPenHole } from './course/pen';
+import { planGreenShape } from './course/green';
 import { attachLifecycle, closeHole, reopenHole, startGrowIn } from './course/lifecycle';
 import { computeStakes, planBunker, planDigWater, planFillWater, planRemoveTrees, planTrees } from './construction/hazards';
 import { Structure, placeStructure, planBridge, planPath } from './construction/paths';
@@ -113,6 +114,11 @@ export class Game {
         return commitPlan(this, planSurfacePaint(this, c.tiles, c.surface), 'construction');
       case 'terrain':
         return commitPlan(this, planTerrain(this, c.tiles, c.op), 'earthworks');
+      case 'shapeGreen': {
+        const h = this.courses.hole(c.holeId);
+        if (!h) return fail('No such hole');
+        return commitPlan(this, planGreenShape(this, h, c.op, c.tiles), 'earthworks');
+      }
       case 'penHole':
         return commitPenHole(this, c.input);
       case 'bunker':

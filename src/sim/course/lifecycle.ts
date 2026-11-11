@@ -9,7 +9,7 @@ export const GROW_IN_DAYS: Record<GrowMethod, number> = { seed: 21, sod: 3 };
 export const GROW_IN_COST_PER_TILE: Record<GrowMethod, number> = { seed: 2, sod: 12 };
 const TURF = new Set<Surface>([Surface.Tee, Surface.Fairway, Surface.Green, Surface.Fringe, Surface.FirstCut]);
 
-function turfTileCount(g: Game, holeId: number): number {
+export function turfTileCount(g: Game, holeId: number): number {
   const w = g.world;
   let n = 0;
   for (let i = 0; i < w.holeId.length; i++) if (w.holeId[i] === holeId && TURF.has(w.surface[i] as Surface)) n++;
@@ -86,4 +86,9 @@ export function attachLifecycle(g: Game): void {
       if (h && h.state === 'closed') h.editedSinceClose = true;
     }
   });
+}
+
+/** What a grow-in would cost right now. */
+export function growInCost(g: Game, holeId: number, method: GrowMethod): number {
+  return turfTileCount(g, holeId) * GROW_IN_COST_PER_TILE[method];
 }

@@ -13,6 +13,7 @@ export type Command =
   | { t: 'sellParcel'; px: number; py: number }
   | { t: 'paint'; tiles: Vec2[]; surface: Surface }
   | { t: 'terrain'; tiles: Vec2[]; op: TerrainOp }
+  | { t: 'shapeGreen'; holeId: number; tiles: Vec2[]; op: TerrainOp }
   | { t: 'penHole'; input: PenInput }
   | { t: 'bunker'; tiles: Vec2[]; sand: SandType }
   | { t: 'digWater'; tiles: Vec2[] }

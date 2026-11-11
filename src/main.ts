@@ -16,6 +16,15 @@ import { createNotifications } from './ui/notifications';
 import { createOverlayBar } from './ui/overlayBar';
 import { createToolbar } from './ui/toolbar';
 import { landTool } from './ui/tools/landTool';
+import { penTool } from './ui/tools/penTool';
+import { paintTool } from './ui/tools/paintTool';
+import { terrainTool } from './ui/tools/terrainTool';
+import { hazardTool } from './ui/tools/hazardTool';
+import { pathTool, structureTool } from './ui/tools/pathTool';
+import { greenTool } from './ui/tools/greenTool';
+import { holeTool } from './ui/tools/holeTool';
+import { HoleSelection } from './ui/selection';
+import { EntityLayer } from './render/entities';
 import { ToolController } from './ui/tools/toolController';
 
 async function startGame(opts: NewGameOptions): Promise<void> {
@@ -42,7 +51,22 @@ async function startGame(opts: NewGameOptions): Promise<void> {
   };
   const hud = createHud(ctx);
   const overlayBar = createOverlayBar(ctx);
-  const toolbar = createToolbar(ctx, [{ make: () => landTool(game), hotkey: 'l' }]);
+  const sel = new HoleSelection();
+  const entities = new EntityLayer(game, () => sel.id);
+  worldLayer.addChildAt(entities.container, 0);
+  const green = greenTool(game, sel, chunks, () => overlayBar.refresh());
+  const holes = holeTool(game, sel, ctx.inspector, () => ctx.tools.setTool(green));
+  const toolbar = createToolbar(ctx, [
+    { make: () => landTool(game), hotkey: 'l' },
+    { make: () => penTool(game, id => { sel.set(id); ctx.tools.setTool(holes); }), hotkey: 'f' },
+    { make: () => holes, hotkey: 'h' },
+    { make: () => green, hotkey: 'g' },
+    { make: () => paintTool(game), hotkey: 'p' },
+    { make: () => terrainTool(game), hotkey: 't' },
+    { make: () => hazardTool(game), hotkey: 'b' },
+    { make: () => pathTool(game), hotkey: 'k' },
+    { make: () => structureTool(game), hotkey: 'u' },
+  ]);
   root.append(hud.el, toolbar, ctx.inspector.el, createNotifications(ctx), h('div', { class: 'panel bottombar' }, overlayBar.el, status));
   game.events.on('cash', () => { if (overlayBar.current() === 'land') overlayBar.refresh(); });
 
@@ -76,8 +100,9 @@ async function startGame(opts: NewGameOptions): Promise<void> {
     if (keys.has('d') || keys.has('arrowright')) camera.x += speed;
     camera.clampTo(game.world.size);
     chunks.update(camera);
+    entities.update(camera.pxPerTile);
     ctx.tools.drawPreview();
-    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L = land tool · Space = pause');
+    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · Space pause');
     hudTimer += t.deltaMS;
     if (hudTimer > 200) { hudTimer = 0; hud.refresh(); }
   });
