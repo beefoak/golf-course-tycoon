@@ -18,6 +18,9 @@ import { attachRoundEffects } from './golfers/roundEffects';
 import { attachTurf, newTurfState, setGrass, TurfState } from './turf/turf';
 import { attachWeather, WeatherState } from './turf/weather';
 import { practiceCommand, practicesSystem } from './turf/practices';
+import { StaffRoster, setShift, setWage, train } from './staff/staff';
+import { moraleSystem } from './staff/morale';
+import { findCandidate } from './staff/market';
 import { attachIrrigation, IrrigationSystem, newIrrigation, placePipe, placePump, placeSprinkler, removeSprinkler, repairSprinkler, setSchedule } from './turf/irrigation';
 import type { CourseStats } from './golfers/stats';
 import type { Thought } from './golfers/thoughts';
@@ -61,6 +64,7 @@ export type GameEvents = {
   roundComplete: { groupId: number };
   roundStart: { groupId: number };
   thought: Thought;
+  staff: { id: number };
 };
 
 export interface System {
@@ -103,6 +107,8 @@ export class Game {
   weather!: WeatherState;
   weatherRng: Rng;
   irrigation: IrrigationSystem;
+  staff = new StaffRoster();
+  staffRng: Rng;
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
@@ -117,6 +123,7 @@ export class Game {
     this.rng = new Rng(o.seed).fork('sim');
     this.weatherRng = new Rng(o.seed).fork('weather');
     this.irrigation = newIrrigation(new Rng(o.seed));
+    this.staffRng = new Rng(o.seed).fork('staff');
     this.parcels = ParcelGrid.fromWorld(world, new Rng(o.seed).fork('parcels'));
     this.ledger = new Ledger(STARTING_CASH[o.difficulty]);
   }
@@ -139,6 +146,7 @@ export class Game {
     attachTurf(g);
     attachIrrigation(g);
     g.registerSystem(practicesSystem);
+    g.registerSystem(moraleSystem);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }
@@ -202,6 +210,19 @@ export class Game {
         return placeStructure(this, c.kind, c.at);
       case 'placeBuilding':
         return placeBuilding(this, c.kind, c.courseId, c.origin);
+      case 'hireStaff': {
+        const cand = findCandidate(this, c.candidateId);
+        if (!cand) return fail('That candidate is no longer available');
+        return this.staff.hire(this, cand, c.courseId);
+      }
+      case 'fireStaff':
+        return this.staff.fire(this, c.id);
+      case 'trainStaff':
+        return train(this, c.id, c.skill);
+      case 'setWage':
+        return setWage(this, c.id, c.wagePerDay);
+      case 'setShift':
+        return setShift(this, c.id, c.startMin, c.endMin);
       case 'applyPractice':
         return practiceCommand(this, c.practice, c.tiles, c.opts);
       case 'placePump':
