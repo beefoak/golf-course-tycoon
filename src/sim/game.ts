@@ -14,6 +14,9 @@ import { CourseRegistry } from './course/course';
 import { GolferPool } from './golfers/generate';
 import { Group, countGroupsOnHole, groupSystem } from './golfers/groups';
 import { attachDemand } from './golfers/demand';
+import { attachRoundEffects } from './golfers/roundEffects';
+import type { CourseStats } from './golfers/stats';
+import type { Thought } from './golfers/thoughts';
 import { Pricing, TeeSheet } from './golfers/teeSheet';
 import { Building, placeBuilding } from './business/buildings';
 import type { HoleResult } from './golfers/hole';
@@ -53,6 +56,7 @@ export type GameEvents = {
   holeComplete: { groupId: number; holeId: number; results: { golferId: number; result: HoleResult }[] };
   roundComplete: { groupId: number };
   roundStart: { groupId: number };
+  thought: Thought;
 };
 
 export interface System {
@@ -83,6 +87,10 @@ export class Game {
   teeSheets = new Map<number, TeeSheet>();
   /** courseId → pricing (absent = defaults) */
   pricing = new Map<number, Pricing>();
+  /** most recent golfer thoughts (capped) */
+  thoughts: Thought[] = [];
+  /** courseId → rolling stats */
+  stats = new Map<number, CourseStats>();
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
@@ -104,6 +112,7 @@ export class Game {
     attachLifecycle(g);
     g.registerSystem(groupSystem);
     attachDemand(g);
+    attachRoundEffects(g);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }

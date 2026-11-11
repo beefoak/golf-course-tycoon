@@ -41,6 +41,8 @@ export interface Group {
   startAbsMin: number;
   /** green fee each golfer pays when the round starts (0 = comped/test) */
   feePerGolfer: number;
+  /** waitingMin when the current hole started (per-hole waiting = waitingMin - this) */
+  holeWaitStart: number;
   rng: Rng;
 }
 
@@ -60,7 +62,7 @@ export function createGroup(g: Game, courseId: number, golferIds: number[], day:
   const grp: Group = {
     id, courseId, golferIds: [...golferIds], day, teeTime, holeOrder: order, holeIdx: 0, phase: 'toTee', started: false,
     pos: { x: 0, y: 0 }, balls: new Map(), scores: new Map(golferIds.map(gid => [gid, []])), usesCart, waitingMin: 0,
-    path: [], busySec: 0, current: null, lastShot: null, startAbsMin: 0, feePerGolfer: 0, rng: g.rng.fork(`group${id}`),
+    path: [], busySec: 0, current: null, lastShot: null, startAbsMin: 0, feePerGolfer: 0, holeWaitStart: 0, rng: g.rng.fork(`group${id}`),
   };
   g.groups.push(grp);
   return grp;
@@ -88,6 +90,7 @@ export function countGroupsOnHole(g: Game, holeId: number): number {
 
 function startHoleFor(g: Game, grp: Group): void {
   const hole = g.courses.hole(currentHoleId(grp)!)!;
+  grp.holeWaitStart = grp.waitingMin;
   grp.balls = new Map(grp.golferIds.map(id => [id, startHole(g, golferOf(g, id), hole)]));
 }
 

@@ -30,6 +30,8 @@ export interface Golfer {
   totalSpend: number;
   lastVisitDay: number;
   memberOf: number | null;
+  /** 0..100 satisfaction from the last round (undefined until they play) */
+  lastSatisfaction?: number;
 }
 
 export function formatHandicap(h: number): string {
