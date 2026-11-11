@@ -29,7 +29,7 @@ import { attachIrrigation, IrrigationSystem, newIrrigation, placePipe, placePump
 import type { CourseStats } from './golfers/stats';
 import type { Thought } from './golfers/thoughts';
 import { Pricing, TeeSheet } from './golfers/teeSheet';
-import { Building, placeBuilding } from './business/buildings';
+import { Building, buildingSystem, placeBuilding, upgradeTier } from './business/buildings';
 import type { HoleResult } from './golfers/hole';
 import { handleCourseCommand, isCourseCommand } from './course/courseCommands';
 import { commitPenHole } from './course/pen';
@@ -69,6 +69,7 @@ export type GameEvents = {
   roundStart: { groupId: number };
   thought: Thought;
   staff: { id: number };
+  noParking: { courseId: number; golfers: number };
 };
 
 export interface System {
@@ -161,6 +162,7 @@ export class Game {
     attachEquipment(g);
     g.registerSystem(programSystem);
     g.registerSystem(staffAgentSystem);
+    g.registerSystem(buildingSystem);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }
@@ -224,6 +226,8 @@ export class Game {
         return placeStructure(this, c.kind, c.at);
       case 'placeBuilding':
         return placeBuilding(this, c.kind, c.courseId, c.origin);
+      case 'upgradeTier':
+        return upgradeTier(this, c.buildingId);
       case 'setProgramRule':
         return setProgramRule(this, c.courseId, c.rule, c.index);
       case 'removeProgramRule':

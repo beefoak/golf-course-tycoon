@@ -30,6 +30,7 @@ export type Command =
   | { t: 'closeHole'; holeId: number }
   | { t: 'reopenHole'; holeId: number; method?: GrowMethod }
   | { t: 'placeBuilding'; kind: BuildingKind; courseId: number; origin: Vec2 }
+  | { t: 'upgradeTier'; buildingId: number }
   | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }
   | { t: 'setProgramRule'; courseId: number; rule: import('./staff/program').ProgramRule; index?: number }
   | { t: 'removeProgramRule'; courseId: number; index: number }

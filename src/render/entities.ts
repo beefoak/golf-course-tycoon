@@ -5,6 +5,10 @@ import { TILE_PX } from './camera';
 import { UI_COLORS } from './palette';
 
 const TEE_HEX: Record<TeeKind, number> = { championship: 0x202020, back: 0x4a7ad8, middle: 0xf0f0f0, forward: 0xe23b3b };
+const BUILDING_HEX: Record<string, number> = {
+  clubhouse: 0xf0e0b0, maintenance: 0x8a8a8a, proShop: 0x60a0e0, range: 0xffffff, practiceGreen: 0xffffff, halfwayHouse: 0xe0a040,
+  restaurant: 0xd06040, cartBarn: 0xa0c060, parking: 0xf0f0f0, lodging: 0xb080d0,
+};
 const STRUCT_HEX = { shelter: 0x8a5a30, restroom: 0xc0c0d0, ballWasher: 0x3060c0, bench: 0x7a5030, drinkStation: 0x30a0a0 } as const;
 
 /**
@@ -33,6 +37,12 @@ export class EntityLayer {
     const c = (v: { x: number; y: number }) => ({ x: (v.x + 0.5) * TILE_PX, y: (v.y + 0.5) * TILE_PX });
     const sel = this.selected();
 
+    for (const b of this.g.buildings) {
+      const x = b.origin.x * TILE_PX, y = b.origin.y * TILE_PX, w = b.w * TILE_PX, hh = b.h * TILE_PX;
+      gfx.rect(x, y, w, hh).stroke({ width: 2 * s, color: BUILDING_HEX[b.kind] ?? 0xffffff, alpha: 0.9 });
+      if (b.kind === 'parking') for (let k = 1; k < b.w; k += 2) gfx.moveTo(x + k * TILE_PX, y + TILE_PX).lineTo(x + k * TILE_PX, y + hh - TILE_PX).stroke({ width: s, color: 0xffffff, alpha: 0.6 });
+      if (b.kind === 'range') gfx.rect(x, y + hh - 3 * TILE_PX, w, 3 * TILE_PX).fill({ color: 0x7ac070, alpha: 0.8 });
+    }
     for (const st of this.g.structures) {
       const p = c(st.at);
       gfx.rect(p.x - 6 * s, p.y - 6 * s, 12 * s, 12 * s).fill(STRUCT_HEX[st.kind]).stroke({ width: s, color: 0x000000 });

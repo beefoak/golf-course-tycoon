@@ -1,5 +1,5 @@
 import { Course } from '../course/course';
-import { clubhouseOf } from '../business/buildings';
+import { clubhouseOf, maxGroupsPerDay } from '../business/buildings';
 import type { Game, System } from '../game';
 import { Golfer } from './golfer';
 import { createGroup } from './groups';
@@ -82,7 +82,8 @@ export function scheduleDay(g: Game): number {
     sheet.prune(g.day);
     const want = Math.round(dailyDemand(g, course) * g.rng.range(0.8, 1.2));
     const busy = new Set<number>();
-    let left = want, turnedAway = 0;
+    let left = want, turnedAway = 0, noParking = 0;
+    let cars = maxGroupsPerDay(g, course.id) - g.groups.filter(x => x.courseId === course.id && x.day === g.day).length;
     while (left > 0) {
       const leader = pickGolfer(g, course, busy);
       const size = Math.max(1, Math.min(4, left, 1 + Math.floor(leader.traits.social * 3.999)));
@@ -90,6 +91,8 @@ export function scheduleDay(g: Game): number {
       busy.add(leader.id);
       while (ids.length < size) { const x = pickGolfer(g, course, busy); busy.add(x.id); ids.push(x.id); }
       left -= size;
+      // one car per group: a full car park sends them home
+      if (cars <= 0) { noParking += size; continue; }
       const len = opts.length > 1 && g.rng.chance(0.6) ? opts[opts.length - 1]! : opts[0]!;
       const minute = sheet.nearestFree(g.day, preferredMinute(g), len);
       if (minute === null) { turnedAway += size; continue; }
@@ -97,8 +100,14 @@ export function scheduleDay(g: Game): number {
       grp.feePerGolfer = greenFee(g.pricing.get(course.id), len);
       sheet.book(g.day, minute, grp.id, len, size);
       booked += size;
+      cars--;
     }
     if (turnedAway) g.notify('info', `${course.name}: tee sheet full, ${turnedAway} golfers turned away`);
+    if (noParking) {
+      const lot = clubhouseOf(g, course.id);
+      g.notify('warn', `${course.name}: car park full, ${noParking} golfers drove away — build more parking`, lot ? { ...lot.door } : undefined);
+      g.events.emit('noParking', { courseId: course.id, golfers: noParking });
+    }
   }
   return booked;
 }
