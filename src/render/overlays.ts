@@ -6,9 +6,11 @@ import { Surface } from '../sim/world/tiles';
 import { rgba } from './atlas';
 import { OverlayFn } from './chunks';
 import { HEAT_CELL } from '../sim/golfers/stats';
+import { Grass } from '../sim/turf/grasses';
+import { connectedSprinklers, forEachInRadius } from '../sim/turf/irrigation';
 
-export type OverlayId = 'elevation' | 'slope' | 'land' | 'traffic' | 'landing' | 'pace';
-export const OVERLAY_LABELS: Record<OverlayId, string> = { elevation: 'Elevation', slope: 'Slope', land: 'Land', traffic: 'Traffic', landing: 'Landing zones', pace: 'Pace' };
+export type OverlayId = 'elevation' | 'slope' | 'land' | 'traffic' | 'landing' | 'pace' | 'moisture' | 'irrigation';
+export const OVERLAY_LABELS: Record<OverlayId, string> = { elevation: 'Elevation', slope: 'Slope', land: 'Land', traffic: 'Traffic', landing: 'Landing zones', pace: 'Pace', moisture: 'Moisture', irrigation: 'Irrigation' };
 
 /** Linear ramp through colour stops, t in [0,1]. */
 export function ramp(stops: number[], t: number): number {
@@ -62,6 +64,33 @@ export const OVERLAYS: Record<OverlayId, (g: Game) => OverlayFn> = {
     if (!mins) return rgba(0x808080, 60);
     // ≤12 min per hole is brisk, ≥20 is slow
     return rgba(ramp([0x40d060, 0xf0d040, 0xe04030], (mins - 12) / 8), 120);
+  },
+  moisture: g => (x, y) => {
+    const i = g.world.idx(x, y);
+    if (g.world.grass[i] === Grass.None) return null;
+    // brown (parched) → green (ideal 35–70) → blue (waterlogged)
+    return rgba(ramp([0xa05a20, 0xd8c040, 0x40c050, 0x40c050, 0x3070e0], g.world.moisture[i]! / 100), 150);
+  },
+  irrigation: g => {
+    // per-tile mask: 1 covered, 2 broken head's throw, 3 pipe, 4 head
+    const w = g.world;
+    const mask = new Uint8Array(w.size * w.size);
+    const live = connectedSprinklers(g);
+    for (const s of g.irrigation.sprinklers) {
+      const v = s.broken || !live.has(s.id) ? 2 : 1;
+      forEachInRadius(g, s, i => { if (mask[i]! !== 1) mask[i] = v; });
+    }
+    for (const run of g.irrigation.pipes) for (const p of run) mask[w.idx(p.x, p.y)] = 3;
+    for (const s of g.irrigation.sprinklers) mask[w.idx(s.pos.x, s.pos.y)] = 4;
+    return (x, y) => {
+      switch (mask[w.idx(x, y)]) {
+        case 1: return rgba(0x40a0ff, 80);
+        case 2: return rgba(0xff5040, 80);
+        case 3: return rgba(0x1840a0, 220);
+        case 4: return rgba(0xffffff, 255);
+        default: return null;
+      }
+    };
   },
   land: g => (x, y) => {
     const px = Math.floor(x / PARCEL_TILES), py = Math.floor(y / PARCEL_TILES);

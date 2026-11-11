@@ -31,6 +31,7 @@ import { ThoughtBubbles } from './ui/bubbles';
 import { golferPanel } from './ui/panels/golferPanel';
 import { statsPanel } from './ui/panels/statsPanel';
 import { clubhouseTool } from './ui/tools/clubhouseTool';
+import { irrigationTool } from './ui/tools/irrigationTool';
 import { Tool } from './ui/tools/tool';
 import { ToolController } from './ui/tools/toolController';
 import { deserialize, serialize } from './sim/save';
@@ -127,6 +128,7 @@ async function startGame(game: Game): Promise<void> {
     { make: () => pathTool(game), hotkey: 'k' },
     { make: () => structureTool(game), hotkey: 'u' },
     { make: () => clubhouseTool(game), hotkey: 'c' },
+    { make: () => irrigationTool(game), hotkey: 'i' },
     { make: () => courseOwner, hotkey: 'o' },
     { make: () => saveTool, hotkey: 'v' },
   ]);
@@ -177,7 +179,7 @@ async function startGame(game: Game): Promise<void> {
     golfers.update(camera, canvas.clientWidth, canvas.clientHeight, performance.now());
     bubbles.update(camera, canvas.clientWidth, canvas.clientHeight);
     ctx.tools.drawPreview();
-    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · O course · V save · click a golfer · Space pause');
+    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · I irrigation · O course · V save · click a golfer · Space pause');
     hudTimer += t.deltaMS;
     if (hudTimer > 200) { hudTimer = 0; hud.refresh(); }
   });

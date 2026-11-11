@@ -17,6 +17,7 @@ import { attachDemand } from './golfers/demand';
 import { attachRoundEffects } from './golfers/roundEffects';
 import { attachTurf, newTurfState, setGrass, TurfState } from './turf/turf';
 import { attachWeather, WeatherState } from './turf/weather';
+import { attachIrrigation, IrrigationSystem, newIrrigation, placePipe, placePump, placeSprinkler, removeSprinkler, repairSprinkler, setSchedule } from './turf/irrigation';
 import type { CourseStats } from './golfers/stats';
 import type { Thought } from './golfers/thoughts';
 import { Pricing, TeeSheet } from './golfers/teeSheet';
@@ -100,6 +101,7 @@ export class Game {
   turf: TurfState = newTurfState();
   weather!: WeatherState;
   weatherRng: Rng;
+  irrigation: IrrigationSystem;
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
@@ -113,6 +115,7 @@ export class Game {
     this.world = world;
     this.rng = new Rng(o.seed).fork('sim');
     this.weatherRng = new Rng(o.seed).fork('weather');
+    this.irrigation = newIrrigation(new Rng(o.seed));
     this.parcels = ParcelGrid.fromWorld(world, new Rng(o.seed).fork('parcels'));
     this.ledger = new Ledger(STARTING_CASH[o.difficulty]);
   }
@@ -133,6 +136,7 @@ export class Game {
     attachDemand(g);
     attachRoundEffects(g);
     attachTurf(g);
+    attachIrrigation(g);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
   }
@@ -196,6 +200,18 @@ export class Game {
         return placeStructure(this, c.kind, c.at);
       case 'placeBuilding':
         return placeBuilding(this, c.kind, c.courseId, c.origin);
+      case 'placePump':
+        return placePump(this, c.at, c.tier);
+      case 'placeSprinkler':
+        return placeSprinkler(this, c.at, c.zone);
+      case 'removeSprinkler':
+        return removeSprinkler(this, c.id);
+      case 'repairSprinkler':
+        return repairSprinkler(this, c.id);
+      case 'placePipe':
+        return placePipe(this, c.tiles);
+      case 'setIrrigationSchedule':
+        return setSchedule(this, c.schedule);
       case 'setGrass':
         return setGrass(this, c.tiles, c.grass, c.method);
       case 'setGreenFee': {

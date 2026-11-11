@@ -31,5 +31,11 @@ export type Command =
   | { t: 'reopenHole'; holeId: number; method?: GrowMethod }
   | { t: 'placeBuilding'; kind: BuildingKind; courseId: number; origin: Vec2 }
   | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }
+  | { t: 'placePump'; at: Vec2; tier: 1 | 2 | 3 }
+  | { t: 'placeSprinkler'; at: Vec2; zone: number }
+  | { t: 'removeSprinkler'; id: number }
+  | { t: 'repairSprinkler'; id: number }
+  | { t: 'placePipe'; tiles: Vec2[] }
+  | { t: 'setIrrigationSchedule'; schedule: { zone: number; minutes: number }[] }
   | { t: 'setGrass'; tiles: Vec2[]; grass: number; method: 'seed' | 'sod' }
   | CourseCommand;

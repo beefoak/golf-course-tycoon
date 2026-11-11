@@ -37,6 +37,16 @@ export class EntityLayer {
       const p = c(st.at);
       gfx.rect(p.x - 6 * s, p.y - 6 * s, 12 * s, 12 * s).fill(STRUCT_HEX[st.kind]).stroke({ width: s, color: 0x000000 });
     }
+    // irrigation: pump house and sprinkler heads (red when broken)
+    const pump = this.g.irrigation.pump;
+    if (pump) {
+      const p = c({ x: pump.pos.x + 1, y: pump.pos.y + 1 });
+      gfx.circle(p.x, p.y, 10 * s).fill(0x2050c0).stroke({ width: 2 * s, color: 0xffffff });
+    }
+    for (const sp of this.g.irrigation.sprinklers) {
+      const p = c(sp.pos);
+      gfx.circle(p.x, p.y, 3 * s).fill(sp.broken ? 0xff4030 : 0x60c0ff).stroke({ width: s, color: 0x102040 });
+    }
     for (const ho of this.g.courses.allHoles()) {
       const isSel = ho.id === sel;
       if (isSel) {
