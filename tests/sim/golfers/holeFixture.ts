@@ -3,7 +3,7 @@ import { Rng } from '../../../src/core/rng';
 import { Hole } from '../../../src/sim/course/course';
 import { Game } from '../../../src/sim/game';
 import { generateGolfer } from '../../../src/sim/golfers/generate';
-import { Golfer } from '../../../src/sim/golfers/golfer';
+import { Golfer, Traits } from '../../../src/sim/golfers/golfer';
 import { Surface } from '../../../src/sim/world/tiles';
 import { newOwnedGame } from '../../helpers';
 
@@ -31,7 +31,7 @@ export function straightHole(lengthTiles = 183): { g: Game; hole: Hole; tee: Vec
   return { g, hole, tee, green };
 }
 
-export const golferWith = (handicap: number, extra: Partial<Golfer> = {}): Golfer => {
+export const golferWith = (handicap: number, extra: Partial<Omit<Golfer, 'traits'>> & { traits?: Partial<Traits> } = {}): Golfer => {
   const base = generateGolfer(new Rng(11), 1);
   return { ...base, handicap, age: 35, type: 'regular', ...extra, traits: { ...base.traits, challenge: 0.5, ...(extra.traits ?? {}) } };
 };
