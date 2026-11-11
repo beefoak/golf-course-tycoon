@@ -35,6 +35,10 @@ export type Command =
   | { t: 'orderStock'; courseId: number; cat: import('./business/proShop').ItemCategory; qty: number }
   | { t: 'buyProShopAddon'; courseId: number; addon: import('./business/proShop').ProShopAddon }
   | { t: 'setSimulatorBays'; courseId: number; bays: number }
+  | { t: 'setMenuPrices'; courseId: number; mult: number }
+  | { t: 'buyCarts'; courseId: number; n: number }
+  | { t: 'setCartFee'; courseId: number; fee: number }
+  | { t: 'setRangeBucket'; courseId: number; price: number }
   | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }
   | { t: 'setProgramRule'; courseId: number; rule: import('./staff/program').ProgramRule; index?: number }
   | { t: 'removeProgramRule'; courseId: number; index: number }

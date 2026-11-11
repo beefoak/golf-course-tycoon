@@ -6,6 +6,7 @@ import type { Game, System } from '../game';
 import { findPath } from '../world/pathfind';
 import { Surface } from '../world/tiles';
 import { addWear } from '../turf/turf';
+import { CART_PATH_ONLY_SPEED, playingGolfer } from '../business/carts';
 import { firstTeeAllowed, stormActive } from '../turf/weather';
 import { center } from './ai';
 import { Golfer } from './golfer';
@@ -51,6 +52,8 @@ export interface Group {
   rng: Rng;
   /** shot target planned for the ball about to be played, reused while waiting on the group ahead */
   planned?: { golferId: number; strokes: number; target: Vec2 } | null;
+  /** golfers who warmed up on the range before the round */
+  warm?: number[];
 }
 
 export const WALK_MPS = 1.3;
@@ -135,7 +138,8 @@ function walkTo(g: Game, grp: Group, to: Vec2): void {
 
 function advance(g: Game, grp: Group): void {
   if (grp.path.length) { footstep(g, grp.pos); trample(g, grp); }
-  let left = ((grp.usesCart ? CART_MPS : WALK_MPS) * SEC_PER_TICK) / TILE_M;
+  const cart = CART_MPS * (g.cartPathOnly.has(grp.courseId) ? CART_PATH_ONLY_SPEED : 1);
+  let left = ((grp.usesCart ? cart : WALK_MPS) * SEC_PER_TICK) / TILE_M;
   while (left > 0 && grp.path.length) {
     const t = grp.path[0]!;
     const d = Math.hypot(t.x - grp.pos.x, t.y - grp.pos.y);
@@ -221,7 +225,7 @@ function tickGroup(g: Game, grp: Group): void {
     if (grp.busySec > 0) return;
     const b = grp.balls.get(grp.current!)!;
     const hole = g.courses.hole(b.holeId)!;
-    const rec = playStroke(g, golferOf(g, b.golferId), hole, b, grp.rng, g.weather.wind);
+    const rec = playStroke(g, playingGolfer(grp, golferOf(g, b.golferId)), hole, b, grp.rng, g.weather.wind);
     grp.lastShot = { golferId: b.golferId, rec, absMinute: g.clock.absMinute };
     grp.current = null;
     return;
@@ -271,7 +275,8 @@ export function finishRoundHeadless(g: Game, grp: Group): void {
       const hole = g.courses.hole(b.holeId);
       if (!hole) { pickUp(b); continue; }
       let guard = 0;
-      while (!b.done && guard++ < 40) playStroke(g, golferOf(g, id), hole, b, grp.rng, g.weather.wind);
+      const gf = playingGolfer(grp, golferOf(g, id));
+      while (!b.done && guard++ < 40) playStroke(g, gf, hole, b, grp.rng, g.weather.wind);
       pickUp(b);
     }
     grp.busySec = 0; grp.current = null; grp.path = [];

@@ -24,6 +24,8 @@ import { findCandidate } from './staff/market';
 import { MaintenanceProgram, assignZone, createZone, removeProgramRule, setProgramRule } from './staff/program';
 import { WorkOrderBook, createUrgentOrder, newOrderBook, pauseOrder, programSystem } from './staff/workOrders';
 import { staffAgentSystem } from './staff/agents';
+import { FnbState, attachFnb, setMenuPrices } from './business/fnb';
+import { CartFleet, attachCarts, buyCarts, setCartFee } from './business/carts';
 import { ProShop, attachProShop, buyAddon, orderStock, setBays, setStockLine } from './business/proShop';
 import { Fleet, assignEquipment, attachEquipment, buyEquipment, newFleet, sellEquipment, upgradeBuilding } from './staff/equipment';
 import { attachIrrigation, IrrigationSystem, newIrrigation, placePipe, placePump, placeSprinkler, removeSprinkler, repairSprinkler, setSchedule } from './turf/irrigation';
@@ -118,6 +120,12 @@ export class Game {
   equipment: Fleet = newFleet();
   programs = new Map<number, MaintenanceProgram>();
   proShops = new Map<number, ProShop>();
+  fnb = new Map<number, FnbState>();
+  carts = new Map<number, CartFleet>();
+  /** range bucket price per course (absent = default) */
+  rangeBucket = new Map<number, number>();
+  /** courses where carts must keep to the paths right now */
+  cartPathOnly = new Set<number>();
   workOrders: WorkOrderBook = newOrderBook();
   /** shot-time multiplier per course from starter/marshal (recomputed each minute) */
   pacePush = new Map<number, number>();
@@ -163,6 +171,8 @@ export class Game {
     g.registerSystem(moraleSystem);
     attachEquipment(g);
     attachProShop(g);
+    attachFnb(g);
+    attachCarts(g);
     g.registerSystem(programSystem);
     g.registerSystem(staffAgentSystem);
     g.registerSystem(buildingSystem);
@@ -239,6 +249,16 @@ export class Game {
         return buyAddon(this, c.courseId, c.addon);
       case 'setSimulatorBays':
         return setBays(this, c.courseId, c.bays);
+      case 'setMenuPrices':
+        return setMenuPrices(this, c.courseId, c.mult);
+      case 'buyCarts':
+        return buyCarts(this, c.courseId, c.n);
+      case 'setCartFee':
+        return setCartFee(this, c.courseId, c.fee);
+      case 'setRangeBucket':
+        if (!(c.price >= 0 && c.price <= 100)) return fail('Bucket price must be $0–$100');
+        this.rangeBucket.set(c.courseId, Math.round(c.price));
+        return ok(undefined);
       case 'setProgramRule':
         return setProgramRule(this, c.courseId, c.rule, c.index);
       case 'removeProgramRule':
