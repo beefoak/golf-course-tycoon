@@ -13,6 +13,7 @@ import { h } from './ui/dom';
 import { createHud } from './ui/hud';
 import { Inspector } from './ui/inspector';
 import { showNewGame } from './ui/newGame';
+import { Loading, afterPaint, showLoading } from './ui/loading';
 import { createNotifications } from './ui/notifications';
 import { createOverlayBar } from './ui/overlayBar';
 import { createToolbar } from './ui/toolbar';
@@ -62,10 +63,12 @@ const UNDO_WINDOW_MS = 10_000;
 
 const store = new SaveStore();
 
-async function startGame(game: Game, opts: { tutorial?: boolean } = {}): Promise<void> {
+async function startGame(game: Game, opts: { tutorial?: boolean; loading?: Loading } = {}): Promise<void> {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const root = document.getElementById('ui') as HTMLElement;
   const app = await createPixiApp(canvas);
+  opts.loading?.step();
+  await afterPaint();
   const atlas = new Atlas(PALETTES[game.terrain], TREE_COLORS, FEATURE_COLORS);
   const chunks = new ChunkRenderer(app, atlas, game.world);
   const worldLayer = new Container();
@@ -277,6 +280,19 @@ async function startGame(game: Game, opts: { tutorial?: boolean } = {}): Promise
     if (hudTimer > 200) { hudTimer = 0; hud.refresh(); }
   });
   (window as unknown as { gct: UiContext }).gct = ctx;
+  // the first frames build every visible chunk: lift the loading card once they're on screen
+  const loading = opts.loading;
+  if (loading) requestAnimationFrame(() => requestAnimationFrame(() => loading.done()));
+}
+
+/** Generate a new course behind the loading card (it repaints between the slow steps). */
+async function newGame(o: NewGameOptions): Promise<void> {
+  const loading = showLoading(document.body);
+  await afterPaint();
+  const game = Game.create(o);
+  loading.step();
+  await afterPaint();
+  await startGame(game, { tutorial: o.tutorial, loading });
 }
 
 async function boot(): Promise<void> {
@@ -287,11 +303,14 @@ async function boot(): Promise<void> {
   if (slot !== null) {
     // drop ?load so a manual refresh doesn't reload the old save over newer play
     history.replaceState(null, '', location.pathname);
+    const loading = showLoading(document.body);
+    await afterPaint();
     const bytes = await store.get(slot).catch(() => null);
     const r = bytes ? deserialize(bytes) : { ok: false as const, reason: `No save named "${slot}"` };
-    if (r.ok) return startGame(r.value);
+    if (r.ok) return startGame(r.value, { loading });
+    loading.done();
     error = r.reason;
   }
-  showNewGame(root, (o: NewGameOptions) => void startGame(Game.create(o), { tutorial: o.tutorial }), store, error);
+  showNewGame(root, (o: NewGameOptions) => void newGame(o), store, error);
 }
 void boot();

@@ -64,3 +64,13 @@ table.grid td:first-child, table.grid th:first-child { text-align: left; }
 .shortcuts th { text-align: left; color: var(--accent); padding: 4px 0; }
 .shortcuts td { padding: 3px 6px 3px 0; vertical-align: top; }
 .shortcuts td.keys { white-space: nowrap; color: var(--accent); font-family: var(--font); font-size: 10px; }
+
+/* loading card (new game / loading a save) */
+.loading { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: var(--bg); font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--text); transition: opacity 0.3s; }
+.loading.out { opacity: 0; pointer-events: none; }
+.loading-card { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 28px 40px; background: var(--panel); border: 2px solid var(--line); box-shadow: 0 2px 0 #0008; min-width: 260px; }
+.loading-title { font-size: 16px; color: var(--accent); }
+.loading-ball { width: 14px; height: 14px; border-radius: 50%; background: #f4f6ef; box-shadow: inset -2px -2px 0 #c9cfc2; animation: loading-bounce 0.7s cubic-bezier(0.3, 0, 0.7, 1) infinite alternate; }
+.loading-line { font-size: 13px; min-height: 1.4em; }
+@keyframes loading-bounce { from { transform: translateY(-18px); } to { transform: translateY(10px) scaleY(0.9); } }
+@media (prefers-reduced-motion: reduce) { .loading-ball { animation: none; } }
