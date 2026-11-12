@@ -223,13 +223,19 @@ export function droughtActive(g: Game): boolean {
   return g.day < g.irrigation.droughtUntilDay;
 }
 
+/** Water the pump can deliver tonight: halved in a drought, never above the scenario/difficulty cap. */
+export function nightlyCapacity(g: Game): number {
+  const p = g.irrigation.pump;
+  return p ? p.capacityM3PerNight * Math.min(droughtActive(g) ? 0.5 : 1, g.opts.droughtCap) : 0;
+}
+
 /** Night watering: scheduled zones in order until the pump's nightly capacity runs out. */
 export function waterAtNight(g: Game): void {
   const irr = g.irrigation;
   irr.lastNight = { m3: 0, cost: 0, limited: false };
   if (!irr.pump || !irr.schedule.length) return;
   const live = connectedSprinklers(g);
-  let left = irr.pump.capacityM3PerNight * (droughtActive(g) ? 0.5 : 1);
+  let left = nightlyCapacity(g);
   const w = g.world;
   for (const { zone, minutes } of irr.schedule) {
     if (minutes <= 0) continue;

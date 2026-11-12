@@ -70,7 +70,7 @@ export function irrigationTool(g: Game) {
         mode === 'pump' ? choice('Size', ([1, 2, 3] as PumpTier[]).map(t => ({ value: t, text: `${PUMP_TIERS[t].capacityM3PerNight} m³ ${money(PUMP_TIERS[t].cost)}` })), () => tier, v => { tier = v; }) : null,
         h('label', null, 'Night schedule'),
         schedule(),
-        h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Pump'), h('span', null, irr.pump ? `${irr.pump.capacityM3PerNight} m³/night${droughtActive(g) ? ' (drought: half)' : ''}` : 'none')),
+        h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Pump'), h('span', null, irr.pump ? `${irr.pump.capacityM3PerNight} m³/night${droughtActive(g) ? ' (drought: half)' : g.opts.droughtCap < 1 ? ` (capped at ${Math.round(g.opts.droughtCap * 100)}%)` : ''}` : 'none')),
         h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Last night'), h('span', null, `${Math.round(irr.lastNight.m3)} m³ · ${money(irr.lastNight.cost)}${irr.lastNight.limited ? ' · pump maxed' : ''}`)),
         cid ? h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Turf coverage'), h('span', null, `${Math.round(coverage(g, cid) * 100)}%`)) : null,
         h('div', { class: 'muted', style: 'margin-top:6px' }, 'Lay pipe from the pump house; heads must touch a pipe. Use the Irrigation and Moisture overlays to check coverage.'));

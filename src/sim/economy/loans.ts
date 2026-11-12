@@ -16,6 +16,7 @@ export interface Loan {
   takenDay: number;
 }
 
+/** The difficulty presets' rates (the game's own rate is g.opts.loanRate). */
 export const LOAN_RATE: Record<Difficulty, number> = { easy: 0.04, normal: 0.06, hard: 0.09, sandbox: 0.06 };
 /** Banks lend up to this share of what the land and buildings are worth. */
 export const LOAN_TO_VALUE = 0.5;
@@ -52,7 +53,7 @@ export function takeLoan(g: Game, amount: number, termDays: number): Result<Loan
   if (!LOAN_TERMS.includes(termDays)) return fail('Pick a 1, 3 or 5 year term');
   const limit = loanLimit(g);
   if (amount > limit) return fail(`The bank will lend up to $${limit.toLocaleString()} (half the value of your land and buildings, less what you owe)`);
-  const rate = LOAN_RATE[g.difficulty];
+  const rate = g.opts.loanRate;
   const principal = Math.round(amount);
   const loan: Loan = { id: g.finance.nextLoanId++, principal, ratePerYear: rate, termDays, remaining: principal, dailyPayment: Math.round(amortised(principal, rate, termDays) * 100) / 100, takenDay: g.day };
   g.finance.loans.push(loan);

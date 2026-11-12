@@ -60,7 +60,7 @@ export function seasonOfDay(day: number): Season {
   return SEASONS[Math.floor(((day - 1) % DAYS_PER_YEAR) / DAYS_PER_SEASON)]!;
 }
 
-function pickKind(rng: Rng, c: Climate, season: Season, prev: WeatherKind | null): WeatherKind {
+function pickKind(rng: Rng, c: Climate, season: Season, prev: WeatherKind | null, sev: number): WeatherKind {
   // fronts linger: often the same as yesterday (storms and heatwaves less so, frost by season)
   if (prev && prev !== 'storm' && rng.chance(prev === 'heatwave' ? 0.5 : 0.3)) {
     if (prev !== 'frost' || c.frostChance[season] > 0) if (prev !== 'heatwave' || c.heatwaveChance[season] > 0) return prev;
@@ -68,18 +68,18 @@ function pickKind(rng: Rng, c: Climate, season: Season, prev: WeatherKind | null
   const rain = c.rainChance[season];
   let r = rng.next();
   const take = (p: number) => { r -= p; return r < 0; };
-  if (take(c.frostChance[season] * (1 - rain))) return 'frost';
-  if (take(rain * 0.15)) return 'storm';
-  if (take(rain * 0.85)) return 'rain';
-  if (take(c.heatwaveChance[season])) return 'heatwave';
+  if (take(Math.min(0.9, c.frostChance[season] * sev) * (1 - rain))) return 'frost';
+  if (take(rain * Math.min(0.6, 0.15 * sev))) return 'storm';
+  if (take(rain * (1 - Math.min(0.6, 0.15 * sev)))) return 'rain';
+  if (take(Math.min(0.6, c.heatwaveChance[season] * sev))) return 'heatwave';
   if (take(c.windyChance)) return 'windy';
   if (take(0.25)) return 'cloudy';
   return 'sunny';
 }
 
 /** Roll one day's weather. */
-export function rollDay(rng: Rng, c: Climate, season: Season, prev: WeatherKind | null): DayWeather {
-  const kind = pickKind(rng, c, season, prev);
+export function rollDay(rng: Rng, c: Climate, season: Season, prev: WeatherKind | null, severity = 1): DayWeather {
+  const kind = pickKind(rng, c, season, prev, severity);
   const [lo, hi] = c.seasonTempC[season];
   let mean = (lo + hi) / 2 + rng.normal(0, 2.5);
   if (kind === 'heatwave') mean += 8;
@@ -105,10 +105,10 @@ export function tempAt(d: DayWeather, minuteOfDay: number): number {
 
 export function initialWeather(g: Game): WeatherState {
   const c = climateOf(g);
-  const today = rollDay(g.weatherRng, c, seasonOfDay(g.day), null);
+  const today = rollDay(g.weatherRng, c, seasonOfDay(g.day), null, g.opts.weatherSeverity);
   const forecast: DayWeather[] = [];
   let prev = today.kind;
-  for (let k = 1; k <= 3; k++) { const d = rollDay(g.weatherRng, c, seasonOfDay(g.day + k), prev); forecast.push(d); prev = d.kind; }
+  for (let k = 1; k <= 3; k++) { const d = rollDay(g.weatherRng, c, seasonOfDay(g.day + k), prev, g.opts.weatherSeverity); forecast.push(d); prev = d.kind; }
   return { ...today, tempC: tempAt(today, g.clock.minuteOfDay), forecast };
 }
 
@@ -145,9 +145,9 @@ export const weatherSystem: System = {
   onDay(g) {
     const c = climateOf(g);
     const prevSeason = seasonOfDay(g.day - 1);
-    const next = g.weather.forecast.shift() ?? rollDay(g.weatherRng, c, g.clock.season, g.weather.kind);
+    const next = g.weather.forecast.shift() ?? rollDay(g.weatherRng, c, g.clock.season, g.weather.kind, g.opts.weatherSeverity);
     const last = g.weather.forecast[g.weather.forecast.length - 1]?.kind ?? next.kind;
-    g.weather.forecast.push(rollDay(g.weatherRng, c, seasonOfDay(g.day + 3), last));
+    g.weather.forecast.push(rollDay(g.weatherRng, c, seasonOfDay(g.day + 3), last, g.opts.weatherSeverity));
     g.weather = { ...next, tempC: tempAt(next, g.clock.minuteOfDay), forecast: g.weather.forecast };
     if (prevSeason !== g.clock.season) {
       if (c.closedSeasons?.includes(g.clock.season)) g.notify('warn', `${g.clock.season[0]!.toUpperCase()}${g.clock.season.slice(1)} has closed the course for the season`);

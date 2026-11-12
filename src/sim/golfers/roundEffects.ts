@@ -58,7 +58,7 @@ export function attachRoundEffects(g: Game): void {
       const mine = list.filter(t => t.golferId === id);
       if (ratio > 1.3) pushThought(g, { golferId: id, day: g.day, minute: g.clock.minuteOfDay, key: 'goodValue', mood: THOUGHT_MOOD.goodValue }, mine);
       else if (ratio < 0.7) pushThought(g, { golferId: id, day: g.day, minute: g.clock.minuteOfDay, key: 'overpriced', mood: THOUGHT_MOOD.overpriced }, mine);
-      const sat = roundSatisfaction(mine, golfer, ratio);
+      const sat = roundSatisfaction(mine, golfer, ratio, g.opts.pickiness);
       applySatisfaction(golfer, grp.courseId, sat);
       golfer.lastSatisfaction = sat;
     }

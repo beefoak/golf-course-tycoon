@@ -71,7 +71,7 @@ export function serialize(g: Game): Uint8Array {
   const header: Omit<SaveHeader, 'buffers'> = {
     version: SAVE_VERSION,
     savedAt: Date.now(),
-    options: { seed: g.seed, terrain: g.terrain, difficulty: g.difficulty, size: g.world.size },
+    options: { seed: g.seed, terrain: g.terrain, difficulty: g.difficulty, size: g.world.size, options: { ...g.opts, startingCash: Number.isFinite(g.opts.startingCash) ? g.opts.startingCash : undefined } },
     clock: g.clock.save(),
     rng: g.rng.getState(),
     notifySeq: g.notifySeq,

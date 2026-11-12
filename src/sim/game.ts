@@ -4,7 +4,8 @@ import { Result, fail, ok } from '../core/result';
 import { Rng } from '../core/rng';
 import { GameClock } from './clock';
 import { Command } from './commands';
-import { Difficulty, STARTING_CASH } from './difficulty';
+import { Difficulty, DifficultyOptions, resolveDifficulty } from './difficulty';
+import { scenarioSystem, startScenario } from './modes/scenarios';
 import { Ledger } from './economy/ledger';
 import { ParcelGrid } from './land/parcels';
 import { commitPlan } from './construction/plan';
@@ -64,6 +65,10 @@ export interface NewGameOptions {
   terrain: TerrainType;
   difficulty: Difficulty;
   size?: number;
+  /** overrides on the difficulty's preset knobs */
+  options?: Partial<DifficultyOptions>;
+  /** a built-in scenario id (sets itself up on the first day) */
+  scenario?: string;
 }
 
 export interface Notification {
@@ -170,6 +175,10 @@ export class Game {
   structures: Structure[] = [];
   /** consumed by the reputation system (Task 40) */
   pendingReputationEvents: { kind: 'specimenRemoved'; at: Vec2 }[] = [];
+  /** the difficulty knobs in force */
+  opts: DifficultyOptions;
+  /** the scenario being played, if any (Task 44) */
+  scenario: import('./modes/scenarios').ScenarioState | null = null;
   private systems: System[] = [];
   notifySeq = 0;
 
@@ -182,12 +191,16 @@ export class Game {
     this.weatherRng = new Rng(o.seed).fork('weather');
     this.irrigation = newIrrigation(new Rng(o.seed));
     this.staffRng = new Rng(o.seed).fork('staff');
+    this.opts = resolveDifficulty(o.difficulty, o.options);
     this.parcels = ParcelGrid.fromWorld(world, new Rng(o.seed).fork('parcels'));
-    this.ledger = new Ledger(STARTING_CASH[o.difficulty]);
+    if (this.opts.landPriceMult !== 1) for (let i = 0; i < this.parcels.price.length; i++) this.parcels.price[i] = Math.round(this.parcels.price[i]! * this.opts.landPriceMult / 1000) * 1000;
+    this.ledger = new Ledger(this.opts.startingCash);
   }
 
   static create(o: NewGameOptions): Game {
-    return Game.wire(new Game(o, generateWorld(o.seed, o.terrain, o.size)));
+    const g = Game.wire(new Game(o, generateWorld(o.seed, o.terrain, o.size)));
+    if (o.scenario) startScenario(g, o.scenario);
+    return g;
   }
 
   /** A game around an existing world (save/load fills in the rest). */
@@ -221,6 +234,7 @@ export class Game {
     g.registerSystem(rivalSystem);
     g.registerSystem(eventSystem);
     g.registerSystem(milestoneSystem);
+    g.registerSystem(scenarioSystem);
     g.registerSystem(loanSystem);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;

@@ -88,9 +88,10 @@ export function valueRatio(golfer: Golfer, feePaid: number, holes: number): numb
 }
 
 /** 0..100 round satisfaction from the round's thoughts and the value for money. */
-export function roundSatisfaction(thoughts: Thought[], golfer: Golfer, ratio: number): number {
-  let s = 55;
-  for (const t of thoughts) s += t.mood * 6;
+export function roundSatisfaction(thoughts: Thought[], golfer: Golfer, ratio: number, pickiness = 1): number {
+  // fussier golfers start lower, weigh complaints more and praise less
+  let s = 55 - (pickiness - 1) * 20;
+  for (const t of thoughts) s += t.mood * 6 * (t.mood < 0 ? pickiness : 1 / pickiness);
   s += Math.max(-30, Math.min(20, (ratio - 1) * 25));
   void golfer;
   return Math.max(0, Math.min(100, s));

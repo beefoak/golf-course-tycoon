@@ -3,6 +3,7 @@ import { EVENTS, EVENT_KINDS, eventBlocker } from '../../sim/rating/events';
 import { MILESTONES, MILESTONE_KEYS } from '../../sim/rating/milestones';
 import { UNLOCK_LABEL, UnlockKey, isUnlocked, lockedReason } from '../../sim/rating/unlocks';
 import { activeCourseId } from '../../sim/course/active';
+import { SCENARIOS, daysLeft } from '../../sim/modes/scenarios';
 import { h, money } from '../dom';
 import { PanelTool, panelTool, tabs } from '../tools/panelTool';
 
@@ -57,8 +58,16 @@ export function clubTool(g: Game): PanelTool {
           h('span', null, `${isUnlocked(g, k) ? '🔓' : '🔒'} ${UNLOCK_LABEL[k]}`),
           h('span', { class: 'muted', style: 'font-size:11px' }, isUnlocked(g, k) ? '' : lockedReason(k)))));
     }
+    const st = g.scenario, scn = st && SCENARIOS[st.id];
+    const left = daysLeft(g);
+    const scenarioBox = st && scn ? h('div', { style: 'border:2px solid var(--line);padding:4px;margin-bottom:6px' },
+      h('div', { class: 'row' }, h('b', null, scn.name), h('span', { style: st.status === 'won' ? 'color:var(--accent)' : st.status === 'failed' ? 'color:var(--bad)' : '' },
+        st.status === 'won' ? 'Complete' : st.status === 'failed' ? 'Failed' : left !== null ? `${left} days left` : 'In progress')),
+      ...scn.goals.map(goal => h('div', { class: 'row' }, h('span', null, `${st.met[goal.id] !== undefined ? '✓' : '○'} ${goal.text}`), h('span', { class: 'muted' }, st.met[goal.id] !== undefined ? `day ${st.met[goal.id]}` : ''))),
+      st.reason ? h('div', { class: 'warnline' }, st.reason) : null) : null;
     return h('div', null,
       h('h3', null, 'Club'),
+      scenarioBox,
       tabs<Tab>([{ value: 'events', text: 'Events' }, { value: 'milestones', text: 'Milestones' }], () => tab, v => { tab = v; refresh(); }),
       body);
   }, 3000);
