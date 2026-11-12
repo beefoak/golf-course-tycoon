@@ -7,7 +7,7 @@ import { THOUGHT_MOOD } from '../golfers/thoughts';
 import { pushThought } from '../golfers/roundEffects';
 import { Practice, applyPractice } from '../turf/practices';
 import { TILE_FLAG } from '../world/world';
-import { findPath } from '../world/pathfind';
+import { AGENT_WEIGHT, findPath } from '../world/pathfind';
 import { EQUIPMENT, workRate } from './equipment';
 import { errorRate } from './morale';
 import { SkillId } from './roles';
@@ -59,7 +59,7 @@ function agent(s: Staff): NonNullable<Staff['agent']> {
 function walkTo(g: Game, s: Staff, to: Vec2): void {
   const a = agent(s);
   // turf machines go where people walk (onto greens and tees), just faster than on foot
-  const p = findPath(g, s.pos, to, 'walk');
+  const p = findPath(g, s.pos, to, 'walk', AGENT_WEIGHT);
   a.path = p ? p.slice(1) : [{ ...to }];
 }
 

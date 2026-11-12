@@ -35,11 +35,13 @@ export function driverCarry(handicap: number, age: number): number {
 export function clubSet(handicap: number, age: number): ClubSpec[] {
   const d = driverCarry(handicap, age);
   const h = Math.max(0, handicap);
+  // spread grows more slowly past 15: high handicaps lose most strokes to short game and distance
+  const spread = Math.min(h, 15) + 0.5 * Math.max(0, h - 15);
   return CLUB_ORDER.map(id => ({
     id,
     carryM: Math.round(d * FRACTION[id] * 10) / 10,
-    sdDistPct: 0.04 + 0.006 * h,
-    sdAngleDeg: 2 + 0.22 * h,
+    sdDistPct: 0.05 + 0.0055 * spread,
+    sdAngleDeg: 3 + 0.19 * spread,
     launch: LAUNCH[id],
   }));
 }

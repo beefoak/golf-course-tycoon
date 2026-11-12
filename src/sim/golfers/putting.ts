@@ -9,7 +9,7 @@ export { greenStimp } from './greenSpeed';
 
 /** Difficulty multiplier for a putt: handicap, green speed and slope at the cup. */
 function puttDifficulty(golfer: Golfer, stimp: number, cupGradient: number): number {
-  return (1 + 0.025 * Math.max(0, golfer.handicap)) * Math.sqrt(stimp / 10) * (1 + 8 * cupGradient);
+  return (1.15 + 0.02 * Math.max(0, golfer.handicap)) * Math.sqrt(stimp / 10) * (1 + 8 * cupGradient);
 }
 
 /** Probability of holing a putt of d metres (tap-ins inside 0.6 m are near certain). */

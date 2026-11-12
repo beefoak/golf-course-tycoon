@@ -21,14 +21,21 @@ export type ShotOutcome = BallOutcome & { landing: Vec2; mishit: boolean; carryM
 
 export const WIND_PUSH = 0.012;
 
+/** Share of the wind's push a golfer allows for by aiming off (good players read it better). */
+export function windAllowance(handicap: number): number {
+  return Math.max(0.3, Math.min(0.85, 0.85 - 0.018 * handicap));
+}
+
 export function mishitChance(handicap: number): number {
-  return Math.max(0, 0.01 + 0.006 * handicap);
+  // like the clubs' spread, the rate climbs more slowly past 15
+  const h = Math.min(handicap, 15) + 0.5 * Math.max(0, handicap - 15);
+  return Math.max(0, 0.01 + 0.006 * h);
 }
 
 /**
  * One full or partial swing: the golfer aims at `target` (carry point), errors come from the
  * club's dispersion scaled by the lie, a mishit loses 30–60% of the distance and doubles the
- * angle error, then wind pushes the landing and the ball rolls out.
+ * angle error, then wind pushes the landing (less the part the golfer aimed off for) and the ball rolls out.
  */
 export function simulateShot(g: Game, s: ShotInput, rng: Rng): ShotOutcome {
   const eff = LIE_EFFECT[s.lie];
@@ -46,9 +53,11 @@ export function simulateShot(g: Game, s: ShotInput, rng: Rng): ShotOutcome {
   const aim = Math.atan2(dy, dx) + angleErr;
   const dir = { x: Math.cos(aim), y: Math.sin(aim) };
   const carryTiles = carry / TILE_M;
+  // the golfer aims off for the push they expect on the intended carry; the real push follows the real carry
+  const allow = windAllowance(s.golfer.handicap) * intended;
   const landing = {
-    x: s.from.x + dir.x * carryTiles + (s.wind.x * carry * WIND_PUSH) / TILE_M,
-    y: s.from.y + dir.y * carryTiles + (s.wind.y * carry * WIND_PUSH) / TILE_M,
+    x: s.from.x + dir.x * carryTiles + (s.wind.x * (carry - allow) * WIND_PUSH) / TILE_M,
+    y: s.from.y + dir.y * carryTiles + (s.wind.y * (carry - allow) * WIND_PUSH) / TILE_M,
   };
   const out = rollBall(g, landing, dir, carry, s.club.launch, rng);
   return { ...out, landing, mishit, carryM: carry };

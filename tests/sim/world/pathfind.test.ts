@@ -1,6 +1,6 @@
 import { commitPlan } from '../../../src/sim/construction/plan';
 import { planBridge, planPath } from '../../../src/sim/construction/paths';
-import { clearPathCache, findPath, tileCost } from '../../../src/sim/world/pathfind';
+import { AGENT_WEIGHT, clearPathCache, findPath, tileCost } from '../../../src/sim/world/pathfind';
 import { Feature, Surface } from '../../../src/sim/world/tiles';
 import { newOwnedGame } from '../../helpers';
 
@@ -70,4 +70,21 @@ test('a goal walled off by water fails at once, and opens up again after an edit
   const tiles = []; for (let y = 40; y < 50; y++) for (let x = 19; x <= 21; x++) tiles.push({ x, y });
   expect(commitPlan(g, planBridge(g, tiles), 'construction').ok).toBe(true);
   expect(findPath(g, { x: 20.5, y: 20.5 }, { x: 20.5, y: 70.5 }, 'walk')).not.toBeNull();
+});
+
+test('golfers and staff walk straight across a green; precise searches still go round it', () => {
+  const g = newOwnedGame({ size: 100, parcels: [[0, 0], [1, 0], [0, 1], [1, 1]] });
+  for (let y = 45; y < 55; y++) for (let x = 45; x < 55; x++) g.world.surface[g.world.idx(x, y)] = Surface.Green;
+  clearPathCache(g);
+  const agent = findPath(g, { x: 30.5, y: 50.5 }, { x: 70.5, y: 50.5 }, 'walk', AGENT_WEIGHT)!;
+  expect(agent).toHaveLength(2);
+  const precise = findPath(g, { x: 30.5, y: 50.5 }, { x: 70.5, y: 50.5 }, 'walk')!;
+  expect(precise.length).toBeGreaterThan(2);
+});
+
+test('carts weave through trees instead of treating them as walls', () => {
+  const g = newOwnedGame({ size: 100, parcels: [[0, 0], [1, 0], [0, 1], [1, 1]] });
+  for (let x = 0; x < 100; x++) g.world.treeSpecies[g.world.idx(x, 50)] = 1;
+  clearPathCache(g);
+  expect(findPath(g, { x: 20.5, y: 20.5 }, { x: 20.5, y: 80.5 }, 'cart')).not.toBeNull();
 });

@@ -3,7 +3,7 @@ import { Rng } from '../../core/rng';
 import { TILE_M } from '../../core/units';
 import { TICKS_PER_MIN } from '../clock';
 import type { Game, System } from '../game';
-import { findPath, tileCost } from '../world/pathfind';
+import { AGENT_WEIGHT, CART_SEARCH_LIMIT, findPath, tileCost } from '../world/pathfind';
 import { Surface } from '../world/tiles';
 import { addWear } from '../turf/turf';
 import { CART_PATH_ONLY_SPEED, playingGolfer } from '../business/carts';
@@ -133,10 +133,18 @@ function startHoleFor(g: Game, grp: Group): void {
   grp.balls = new Map(grp.golferIds.map(id => [id, startHole(g, golferOf(g, id), hole)]));
 }
 
+/** Trips shorter than this (tiles) are walked even by cart groups. */
+const CART_MIN_TILES = 15;
+
 function walkTo(g: Game, grp: Group, to: Vec2): void {
   // carts can't reach a ball on a green or tee: walk there rather than search the whole map for a way
-  const cart = grp.usesCart && Number.isFinite(tileCost(g, Math.floor(to.x), Math.floor(to.y), 'cart'));
-  const p = (cart ? findPath(g, grp.pos, to, 'cart') : null) ?? findPath(g, grp.pos, to, 'walk');
+  // a short hop isn't worth a cart search, and a cart route should be found without combing the map
+  const dist = Math.hypot(to.x - grp.pos.x, to.y - grp.pos.y);
+  // (and from a tee or green the golfers walk back to the cart)
+  const cartOk = (p: Vec2) => Number.isFinite(tileCost(g, Math.floor(p.x), Math.floor(p.y), 'cart'));
+  const cart = grp.usesCart && dist > CART_MIN_TILES && cartOk(to) && cartOk(grp.pos);
+  const limit = Math.min(CART_SEARCH_LIMIT, 500 + 15 * dist);
+  const p = (cart ? findPath(g, grp.pos, to, 'cart', AGENT_WEIGHT, limit) : null) ?? findPath(g, grp.pos, to, 'walk', AGENT_WEIGHT);
   grp.path = p ? p.slice(1) : [{ ...to }];
 }
 

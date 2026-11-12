@@ -27,7 +27,9 @@ import { shortfallReport } from '../src/sim/staff/workOrders';
 import { EquipmentKind } from '../src/sim/staff/equipment';
 import { DAYS_PER_YEAR } from '../src/sim/clock';
 import { BuildingKind } from '../src/sim/business/buildings';
-import { Feature, Surface, isTurfSurface } from '../src/sim/world/tiles';
+import { Feature, Surface, isBlockingFeature, isTurfSurface } from '../src/sim/world/tiles';
+import { slopeAt } from '../src/sim/world/slope';
+import { findPath } from '../src/sim/world/pathfind';
 import { TerrainType } from '../src/sim/world/terrainTypes';
 
 export interface HeadlessOptions {
@@ -116,6 +118,76 @@ export class ScriptedPlayer {
     return null;
   }
 
+  /**
+   * Try shifted and shortened versions of a planned hole and keep the one on the cleanest ground:
+   * few blocked tiles (rock, creek, water, wetland) in the corridor, a flat green site, a modest
+   * climb, and a walk from the previous green. Rock can't be moved, so a player routes around it.
+   */
+  private refine(p: PlannedHole, prevGreen: Vec2 | null): void {
+    const g = this.g, w = g.world;
+    const base = { tee: p.tee, green: p.green };
+    const len0 = Math.hypot(base.green.x - base.tee.x, base.green.y - base.tee.y);
+    const dir = { x: (base.green.x - base.tee.x) / len0, y: (base.green.y - base.tee.y) / len0 };
+    const side = { x: -dir.y, y: dir.x };
+    const half = yardsToTiles(35 / 2 + 15) ;
+    const blocked = (x: number, y: number) => {
+      const xi = Math.round(x), yi = Math.round(y);
+      if (!w.inBounds(xi, yi) || !g.parcels.tileOwned(xi, yi)) return true;
+      const i = w.idx(xi, yi);
+      return w.surface[i] === Surface.Water || isBlockingFeature(w.feature[i] as Feature);
+    };
+    const elev = (v: Vec2) => w.elevation[w.idx(Math.round(v.x), Math.round(v.y))]!;
+    const score = (tee: Vec2, green: Vec2): number => {
+      if (blocked(tee.x, tee.y) || blocked(green.x, green.y)) return Infinity;
+      const len = Math.hypot(green.x - tee.x, green.y - tee.y);
+      let bad = 0;
+      // the corridor, sampled every 2 tiles (blocked ground near the landing areas and green counts double)
+      for (let s = 8; s <= len; s += 2) {
+        const t = s / len, cx = tee.x + (green.x - tee.x) * t, cy = tee.y + (green.y - tee.y) * t;
+        const weight = t > 0.85 ? 3 : t > 0.45 ? 2 : 1;
+        for (let o = -half; o <= half; o += 2) if (blocked(cx + side.x * o, cy + side.y * o)) bad += weight * (Math.abs(o) < half / 2 ? 2 : 1);
+      }
+      let steep = 0;
+      for (let a = 0; a < 8; a++) steep = Math.max(steep, slopeAt(w, green.x + Math.cos(a * Math.PI / 4) * 6, green.y + Math.sin(a * Math.PI / 4) * 6).gradient);
+      // golfers walk from the last green to this tee, and down the hole to its green
+      const walk = (prevGreen && !findPath(g, prevGreen, tee, 'walk') ? 400 : 0) + (!findPath(g, tee, green, 'walk') ? 400 : 0);
+      return bad * 4 + steep * 400 + Math.abs(elev(green) - elev(tee)) * 2 + (len0 - len) * 2.5 + walk;
+    };
+    let best = { tee: base.tee, green: base.green, s: score(base.tee, base.green) };
+    for (const lenF of [1, 0.92, 0.84, 0.76])
+      for (const tdx of [-10, -5, 0, 5, 10])
+        for (const gdx of [-10, -5, 0, 5, 10]) {
+          const tee = { x: Math.round(base.tee.x + side.x * tdx), y: Math.round(base.tee.y + side.y * tdx) };
+          const end = { x: base.green.x + side.x * gdx, y: base.green.y + side.y * gdx };
+          const green = { x: Math.round(tee.x + (end.x - tee.x) * lenF), y: Math.round(tee.y + (end.y - tee.y) * lenF) };
+          const s = score(tee, green);
+          if (s < best.s) best = { tee, green, s };
+        }
+    p.tee = best.tee;
+    p.green = best.green;
+  }
+
+  /** If golfers can't walk from a to b, bridge the water on the straight line between (3 tiles wide, short crossings only). */
+  private bridgeIfCut(a: Vec2, b: Vec2): void {
+    const g = this.g, w = g.world;
+    if (findPath(g, a, b, 'walk')) return;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const side = { x: -(b.y - a.y) / len, y: (b.x - a.x) / len };
+    const tiles: Vec2[] = [];
+    const seen = new Set<number>();
+    for (let s = 0; s <= len; s += 0.5) {
+      const cx = a.x + ((b.x - a.x) * s) / len, cy = a.y + ((b.y - a.y) * s) / len;
+      for (const o of [-1, 0, 1]) {
+        const x = Math.round(cx + side.x * o), y = Math.round(cy + side.y * o);
+        if (!w.inBounds(x, y)) continue;
+        const i = w.idx(x, y);
+        if (w.surface[i] === Surface.Water && !seen.has(i)) { seen.add(i); tiles.push({ x, y }); }
+      }
+    }
+    // a creek is a few tiles across; a lake is not worth bridging
+    if (tiles.length && tiles.length <= 60) this.run({ t: 'bridge', tiles }, 'bridge');
+  }
+
   get built(): number[] { return this.planned.filter(p => p.id !== undefined).map(p => p.id!); }
 
   setup(): void {
@@ -149,6 +221,9 @@ export class ScriptedPlayer {
       const tee: Vec2 = { x: cx, y: up ? t + rowH[row]! - 14 : t + 14 };
       this.planned.push({ k, tee, green: { x: cx, y: Math.round(up ? tee.y - len : tee.y + len) } });
     }
+    // fit each hole to the ground: slide and shorten it around rock, creeks, water and steep greens
+    let prevGreen: Vec2 | null = null;
+    for (const p of this.planned) { this.refine(p, prevGreen); prevGreen = p.green; }
     this.place('clubhouse', { x: x0, y: roadTop - 10 }, 'clubhouse');
     this.place('proShop', { x: x0 + 15, y: roadTop - 6 }, 'pro shop');
     this.place('parking', { x: x0 + 24, y: roadTop - 10 }, 'parking');
@@ -202,7 +277,6 @@ export class ScriptedPlayer {
   /** Build what the money allows, borrowing when the bank will lend. */
   daily(): void {
     const g = this.g;
-    let progressed = false;
     // the fleet comes before more holes (it may not have been affordable on day one)
     for (const kind of EQUIPMENT) if (!g.equipment.all.some(e => e.kind === kind && e.courseId === this.courseId) && g.ledger.cash > RESERVE) g.dispatch({ t: 'buyEquipment', courseId: this.courseId, kind, tier: 1 });
     for (const p of this.planned) {
@@ -220,10 +294,14 @@ export class ScriptedPlayer {
       if (!res.ok) { p.failed = res.reason; continue; }
       p.id = (res.value as { id: number }).id;
       for (let y = Math.min(p.tee.y, p.green.y); y <= Math.max(p.tee.y, p.green.y); y += 14) g.dispatch({ t: 'placeSprinkler', at: { x: p.tee.x, y }, zone: Math.min(32, p.k + 1) });
+      // creeks across the walk: bridge them like a player would
+      const prev = this.planned[p.k - 1];
+      if (prev) this.bridgeIfCut(prev.green, p.tee);
+      this.bridgeIfCut(p.tee, p.green);
       this.run({ t: 'startGrowIn', holeId: p.id, method: 'seed' }, `seed hole ${p.k + 1}`);
-      progressed = true;
     }
-    if (progressed) this.staff();
+    // top the crew up every day: people quit, and a missing mechanic leaves broken machines broken
+    this.staff();
     // another car park whenever golfers are being sent home
     // carts and a halfway house once the course is earning (both pay their way)
     const open = g.courses.get(this.courseId)?.holes.filter(h => h.state === 'open').length ?? 0;

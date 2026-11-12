@@ -5,13 +5,13 @@ import { golferWith, straightHole } from './holeFixture';
 
 const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-test('400-yard open par 4: scratch averages < 4.4, a 24 averages > 5.2', () => {
+test('400-yard open par 4: scratch averages < 4.4, a 24 averages > 4.9', () => {
   const { g, hole } = straightHole();
   const rng = new Rng(21);
   const scratch = Array.from({ length: 500 }, () => simulateHole(g, golferWith(0), hole, rng).strokes);
   const high = Array.from({ length: 500 }, () => simulateHole(g, golferWith(24), hole, rng).strokes);
   expect(avg(scratch)).toBeLessThan(4.4);
-  expect(avg(high)).toBeGreaterThan(5.2);
+  expect(avg(high)).toBeGreaterThan(4.9);
 });
 
 test('a pond in front of the green hurts the 24 more than the scratch player', () => {

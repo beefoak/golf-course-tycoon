@@ -21,7 +21,8 @@ export function tileCost(g: Game, x: number, y: number, mode: MoveMode): number 
   if (s === Surface.Tee) return mode === 'cart' ? Infinity : 1;
   if (s === Surface.Bunker) return mode === 'cart' ? Infinity : 4;
   if (w.feature[i] === Feature.Creek) return Infinity;
-  if (w.treeSpecies[i]) return mode === 'cart' ? Infinity : 1.5;
+  // carts weave between trees (a tile is 2 m) but slowly; walls of trees made every cart search a maze
+  if (w.treeSpecies[i]) return mode === 'cart' ? 3 : 1.5;
   return 1;
 }
 
@@ -145,11 +146,17 @@ function anchor(g: Game, cx: number, cy: number, mode: MoveMode): Vec2 | null {
  */
 /** Longest walk (tiles) checked for a straight-line route before searching. */
 export const STRAIGHT_MAX_TILES = 80;
-/** Every tile on the line is open ground (no greens, bunkers, water or blocked tiles). */
-function straightClear(g: Game, a: Vec2, b: Vec2, mode: MoveMode): boolean {
+/** Agents (golfers, staff) take a straight line this long, over greens and trees too. */
+export const AGENT_STRAIGHT_MAX_TILES = 160;
+/**
+ * Every tile on the line is open ground (no greens, bunkers, water or blocked tiles). Agents are
+ * less fussy: anything short of a bunker or a blocked tile will do, as people really walk.
+ */
+function straightClear(g: Game, a: Vec2, b: Vec2, mode: MoveMode, agent = false): boolean {
   const dx = b.x - a.x, dy = b.y - a.y;
   const len = Math.hypot(dx, dy);
-  if (len > STRAIGHT_MAX_TILES) return false;
+  if (len > (agent ? AGENT_STRAIGHT_MAX_TILES : STRAIGHT_MAX_TILES)) return false;
+  const maxCost = agent ? 3 : 1.5;
   const steps = Math.ceil(len * 2);
   let last = -1;
   for (let k = 0; k <= steps; k++) {
@@ -157,22 +164,36 @@ function straightClear(g: Game, a: Vec2, b: Vec2, mode: MoveMode): boolean {
     const i = y * g.world.size + x;
     if (i === last) continue;
     last = i;
-    if (!(tileCost(g, x, y, mode) <= 1.5)) return false;
+    if (!(tileCost(g, x, y, mode) <= maxCost)) return false;
   }
   return true;
 }
 
-export function findPath(g: Game, from: Vec2, to: Vec2, mode: MoveMode): Vec2[] | null {
+/**
+ * Heuristic weight for agents on the move (golfers, staff): a walk a few percent longer than the
+ * best is fine, and the greedier search is far cheaper around creeks and lakes.
+ */
+export const AGENT_WEIGHT = 2;
+
+/** A cart that finds no route within this many tiles gives up and the group walks (tree mazes, no cart paths). */
+export const CART_SEARCH_LIMIT = 20_000;
+
+/** Counters for profiling (calls, cache hits, straight-line hits, A* runs, tiles expanded). */
+export const pathStats = { calls: 0, cached: 0, straight: 0, searches: 0, expanded: 0, failed: 0 };
+
+export function findPath(g: Game, from: Vec2, to: Vec2, mode: MoveMode, weight = 1, maxExpand = 400_000): Vec2[] | null {
   const w = g.world;
   const n = w.size;
   const fx = Math.floor(from.x), fy = Math.floor(from.y);
   const tx = Math.floor(to.x), ty = Math.floor(to.y);
+  pathStats.calls++;
   if (!w.inBounds(fx, fy) || !w.inBounds(tx, ty)) return null;
   // a short walk over open ground: the straight line is already the best route
-  if (straightClear(g, from, to, mode)) return [{ ...from }, { ...to }];
-  const key = `${Math.floor(fx / CELL)},${Math.floor(fy / CELL)}|${Math.floor(tx / CELL)},${Math.floor(ty / CELL)}|${mode}`;
+  if (straightClear(g, from, to, mode, weight > 1)) { pathStats.straight++; return [{ ...from }, { ...to }]; }
+  const key = `${Math.floor(fx / CELL)},${Math.floor(fy / CELL)}|${Math.floor(tx / CELL)},${Math.floor(ty / CELL)}|${mode}|${weight}|${maxExpand}`;
   const cache = cacheFor(g);
   if (cache.has(key)) {
+    pathStats.cached++;
     const c = cache.get(key)!;
     return c ? [{ ...from }, ...c.slice(1, -1).map(p => ({ ...p })), { ...to }] : null;
   }
@@ -198,7 +219,7 @@ export function findPath(g: Game, from: Vec2, to: Vec2, mode: MoveMode): Vec2[] 
   // ignore a distant path, but it searches far fewer tiles (weighted A*, Task 45 perf)
   const h = (i: number) => {
     const dx = Math.abs((i % n) - tx), dy = Math.abs(Math.floor(i / n) - ty);
-    return HEURISTIC_COST * (Math.max(dx, dy) + (SQRT2 - 1) * Math.min(dx, dy));
+    return weight * HEURISTIC_COST * (Math.max(dx, dy) + (SQRT2 - 1) * Math.min(dx, dy));
   };
   const open = new Heap();
   s.g[start] = 0; s.stamp[start] = gen; s.came[start] = -1;
@@ -210,7 +231,7 @@ export function findPath(g: Game, from: Vec2, to: Vec2, mode: MoveMode): Vec2[] 
     if (s.closed[cur] === gen) continue;
     s.closed[cur] = gen;
     if (cur === goal) { found = true; break; }
-    if (++expanded > 400_000) break;
+    if (++expanded > maxExpand) break;
     const cx = cur % n, cy = Math.floor(cur / n);
     const cc = cost(cur);
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
@@ -229,7 +250,8 @@ export function findPath(g: Game, from: Vec2, to: Vec2, mode: MoveMode): Vec2[] 
       }
     }
   }
-  if (!found) { cache.set(key, null); return null; }
+  pathStats.searches++; pathStats.expanded += expanded;
+  if (!found) { pathStats.failed++; cache.set(key, null); return null; }
   const tiles: number[] = [];
   for (let c = goal; c !== -1; c = s.came[c]!) tiles.push(c);
   tiles.reverse();
