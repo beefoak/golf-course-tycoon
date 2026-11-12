@@ -1,3 +1,4 @@
+import { activeCourseId } from '../../sim/course/active';
 import { Command } from '../../sim/commands';
 import { Game } from '../../sim/game';
 import { staffActivity } from '../../sim/staff/agents';
@@ -25,7 +26,7 @@ export function staffTool(g: Game): PanelTool {
   let open: number | null = null;
   const buyKind = { kind: 'greensMower' as EquipmentKind };
   return panelTool(g, 'staff', 'Staff', refresh => {
-    const courseId = g.courses.list[0]?.id ?? 0;
+    const courseId = activeCourseId(g);
     const run = (c: Command, okText?: string) => {
       const r = g.dispatch(c);
       if (!r.ok) g.notify('warn', r.reason);

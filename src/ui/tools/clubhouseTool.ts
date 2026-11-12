@@ -1,3 +1,4 @@
+import { activeCourseId } from '../../sim/course/active';
 import type { Graphics } from 'pixi.js';
 import { Vec2 } from '../../core/geom';
 import { BUILDING_DEFS, BuildingKind, buildingLocked, checkFootprint } from '../../sim/business/buildings';
@@ -24,7 +25,7 @@ export function buildingPlacer(g: Game, kindOf: () => BuildingKind, id: string, 
   let hover: Vec2 | null = null;
   const def = () => BUILDING_DEFS[kindOf()];
   const origin = (t: Vec2): Vec2 => ({ x: Math.floor(t.x - def().w / 2), y: Math.floor(t.y - def().h / 2) });
-  const courseId = () => g.courses.list[0]?.id ?? null;
+  const courseId = () => (activeCourseId(g) || null);
   const blocker = (): string | null => {
     const id = courseId();
     const k = kindOf();

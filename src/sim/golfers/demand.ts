@@ -8,6 +8,7 @@ import { averagePrice, priceFor, recordFill } from '../business/pricing';
 import { bookMembers, reservedSlots } from '../business/memberships';
 import { reputation } from '../rating/reputation';
 import { competitionFactor, rivalFactor } from '../rating/rivals';
+import { blockTeeSheet } from '../rating/events';
 import { isClosedSeason, weatherDemandFactor } from '../turf/weather';
 
 export const BASE_DEMAND = 30;
@@ -97,6 +98,8 @@ export function scheduleDay(g: Game): number {
     }
     const sheet = teeSheetFor(g, course.id);
     sheet.prune(g.day);
+    // an event has the course today
+    if (blockTeeSheet(g, course.id)) continue;
     const memberIds = bookMembers(g, course, sheet);
     booked += memberIds.size;
     const want = Math.round(dailyDemand(g, course) * g.rng.range(0.8, 1.2));

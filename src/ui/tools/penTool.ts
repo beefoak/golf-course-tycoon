@@ -1,3 +1,4 @@
+import { activeCourseId } from '../../sim/course/active';
 import type { Graphics } from 'pixi.js';
 import { Vec2, dist } from '../../core/geom';
 import { tilesToYards, yardsToTiles } from '../../core/units';
@@ -23,12 +24,12 @@ export function penTool(g: Game, onCreated?: (holeId: number) => void): Tool {
   const route = (): Vec2[] => (confirming || !hover ? points : [...points, snap(hover)]);
   const course = (): Course => {
     if (g.courses.list.length === 0) g.dispatch({ t: 'createCourse', name: 'Course 1' });
-    return g.courses.list[0]!;
+    return g.courses.get(activeCourseId(g))!;
   };
   const finish = () => {
     if (points.length < 2) return;
     confirming = true;
-    const d = planPenHole(g, { courseId: g.courses.list[0]?.id ?? 0, route: points, ...widths });
+    const d = planPenHole(g, { courseId: activeCourseId(g), route: points, ...widths });
     preview = { cost: d.plan.cost, warnings: d.warnings };
   };
   const commit = () => {

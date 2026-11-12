@@ -1,3 +1,4 @@
+import { activeCourseId } from '../../sim/course/active';
 import { Command } from '../../sim/commands';
 import { Game } from '../../sim/game';
 import { CART_PRICE, RANGE_BUCKET, cartCapacity, cartPathOnly, fleetOf } from '../../sim/business/carts';
@@ -8,7 +9,7 @@ import { INPUT_STYLE, PanelTool, panelTool } from '../tools/panelTool';
 /** Food & drink prices, the cart fleet and fee, and the range bucket price. */
 export function servicesTool(g: Game): PanelTool {
   return panelTool(g, 'services', 'Services', refresh => {
-    const courseId = g.courses.list[0]?.id ?? 0;
+    const courseId = activeCourseId(g);
     const has = (k: string) => g.buildings.some(b => (b.kind as string) === k && b.courseId === courseId);
     const run = (c: Command, okText?: string) => {
       const r = g.dispatch(c);

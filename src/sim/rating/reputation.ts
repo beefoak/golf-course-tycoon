@@ -20,9 +20,15 @@ export interface Reputation {
 export interface RepState {
   /** specimen trees felled and the like: aesthetic points lost, fading with time */
   penalties: { courseId: number; day: number; points: number; at: Vec2 }[];
+  /** prestige from hosting events: stars, fading with the same half-life as reviews */
+  bonuses: { courseId: number; day: number; stars: number }[];
   cache: [number, Reputation][];
 }
-export function newRepState(): RepState { return { penalties: [], cache: [] }; }
+export function newRepState(): RepState { return { penalties: [], bonuses: [], cache: [] }; }
+
+export function prestige(g: Game, courseId: number): number {
+  return g.repState.bonuses.filter(b => b.courseId === courseId).reduce((s, b) => s + b.stars * Math.pow(0.5, (g.day - b.day) / HALF_LIFE_DAYS), 0);
+}
 
 export const HALF_LIFE_DAYS = 60;
 /** Reviews' weight against the course's own scores: the scores count as this many reviews. */
@@ -50,17 +56,18 @@ export function computeReputation(g: Game, courseId: number): Reputation {
     const t = acc.type.get(r.type) ?? [0, 0]; t[0]! += r.stars * w; t[1]! += w; acc.type.set(r.type, t);
     n++;
   }
-  const blend = (sum: number, wt: number, prior: number) => Math.round(((sum + SCORE_WEIGHT * prior) / (wt + SCORE_WEIGHT)) * 100) / 100;
+  const bonus = prestige(g, courseId);
+  const blend = (sum: number, wt: number, prior: number) => Math.round(Math.max(0, Math.min(5, (sum + SCORE_WEIGHT * prior) / (wt + SCORE_WEIGHT) + bonus)) * 100) / 100;
   const overall = blend(acc.all[0]!, acc.all[1]!, base);
   const bySegment = {} as Record<Segment, number>;
   for (const s of SEGMENTS) {
     // value looks different to each segment
     const own = scoreStars({ ...scores, value: valueScore(g, courseId, s) });
     const a = acc.seg.get(s) ?? [0, 0];
-    bySegment[s] = blend(a[0]!, a[1]!, (own + overall) / 2);
+    bySegment[s] = blend(a[0]!, a[1]!, (own + overall - bonus) / 2);
   }
   const byType = {} as Record<GolferType, number>;
-  for (const t of GOLFER_TYPES) { const a = acc.type.get(t) ?? [0, 0]; byType[t] = blend(a[0]!, a[1]!, overall); }
+  for (const t of GOLFER_TYPES) { const a = acc.type.get(t) ?? [0, 0]; byType[t] = blend(a[0]!, a[1]!, overall - bonus); }
   return { overall, bySegment, byType, scores, reviews: n, day: g.day };
 }
 
@@ -91,6 +98,7 @@ export function drainEvents(g: Game): void {
     if (courseId) g.repState.penalties.push({ courseId, day: g.day, points: SPECIMEN_POINTS, at: { ...e.at } });
   }
   g.repState.penalties = g.repState.penalties.filter(p => g.day - p.day < HALF_LIFE_DAYS * 6);
+  g.repState.bonuses = g.repState.bonuses.filter(p => g.day - p.day < HALF_LIFE_DAYS * 6);
 }
 
 /** Monthly: a well-regarded course lifts the price of the land around it (and a poor one drags it down). */
@@ -146,7 +154,7 @@ registerSaveable({
   save: g => ({ ...g.repState, cache: [...g.reputation], reviews: g.reviews }),
   load: (g, d) => {
     const s = d as RepState & { reviews?: Game['reviews'] };
-    g.repState = { penalties: s.penalties ?? [], cache: [] };
+    g.repState = { penalties: s.penalties ?? [], bonuses: s.bonuses ?? [], cache: [] };
     g.reputation = new Map(s.cache ?? []);
     g.reviews = s.reviews ?? [];
   },

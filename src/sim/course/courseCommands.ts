@@ -1,3 +1,4 @@
+import { isUnlocked, lockedReason } from '../rating/unlocks';
 import { Vec2 } from '../../core/geom';
 import { Result, fail, ok } from '../../core/result';
 import type { Game } from '../game';
@@ -24,7 +25,12 @@ export function isCourseCommand(c: { t: string }): c is CourseCommand {
 const round = (v: Vec2): Vec2 => ({ x: Math.round(v.x), y: Math.round(v.y) });
 
 export function handleCourseCommand(g: Game, c: CourseCommand): Result<unknown> {
-  if (c.t === 'createCourse') return ok(g.courses.create(c.name.trim() || `Course ${g.courses.list.length + 1}`));
+  if (c.t === 'createCourse') {
+    if (g.courses.list.length && !isUnlocked(g, 'multiCourse')) return fail(lockedReason('multiCourse'));
+    const course = g.courses.create(c.name.trim() || `Course ${g.courses.list.length + 1}`);
+    g.activeCourseId = course.id;
+    return ok(course);
+  }
   if (c.t === 'renumberHoles') {
     const course = g.courses.get(c.courseId);
     if (!course) return fail('No such course');

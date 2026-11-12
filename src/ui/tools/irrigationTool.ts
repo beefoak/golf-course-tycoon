@@ -1,3 +1,4 @@
+import { activeCourseId } from '../../sim/course/active';
 import { Vec2 } from '../../core/geom';
 import { emptyPlan } from '../../sim/construction/plan';
 import { Game } from '../../sim/game';
@@ -59,7 +60,7 @@ export function irrigationTool(g: Game) {
     },
     options: () => {
       const irr = g.irrigation;
-      const cid = g.courses.list[0]?.id;
+      const cid = activeCourseId(g) || undefined;
       return h('div', null,
         choice('Place', [
           { value: 'sprinkler', text: 'Sprinkler' }, { value: 'pipe', text: `Pipe ${money(PIPE_COST_PER_TILE)}/tile` },

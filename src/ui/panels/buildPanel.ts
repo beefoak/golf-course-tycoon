@@ -1,3 +1,4 @@
+import { activeCourseId } from '../../sim/course/active';
 import { BUILDING_DEFS, BuildingKind, buildingLocked, clubhouseOf, maxGroupsPerDay, parkingCapacity } from '../../sim/business/buildings';
 import { Game } from '../../sim/game';
 import { h, money } from '../dom';
@@ -9,7 +10,7 @@ const AMENITIES: BuildingKind[] = ['proShop', 'parking', 'practiceGreen', 'range
 /** Amenities: pick a building, click the map to place it; clubhouse tier and parking at a glance. */
 export function amenityTool(g: Game): Tool {
   let kind: BuildingKind = 'proShop';
-  const courseId = () => g.courses.list[0]?.id ?? 0;
+  const courseId = () => activeCourseId(g);
   const box = h('div');
   const refresh = () => box.replaceChildren(base.panel!()!);
   const header = () => {

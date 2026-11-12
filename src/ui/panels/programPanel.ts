@@ -1,3 +1,4 @@
+import { activeCourseId } from '../../sim/course/active';
 import { Command } from '../../sim/commands';
 import { Game } from '../../sim/game';
 import { PRACTICES, Practice } from '../../sim/turf/practices';
@@ -56,7 +57,7 @@ export function programPanel(g: Game, courseId: number, refresh: () => void, sta
 export function programTool(g: Game): PanelTool {
   const state = { tab: 'rules' as Tab };
   return panelTool(g, 'program', 'Program', refresh => {
-    const c = g.courses.list[0];
+    const c = g.courses.get(activeCourseId(g));
     return c ? programPanel(g, c.id, refresh, state) : h('div', { class: 'muted' }, 'Build a course first.');
   }, 2000);
 }

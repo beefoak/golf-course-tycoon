@@ -1,3 +1,4 @@
+import { activeCourseId } from './sim/course/active';
 import { Container } from 'pixi.js';
 import './ui/style.css';
 import { Atlas } from './render/atlas';
@@ -40,6 +41,8 @@ import { golferPanel } from './ui/panels/golferPanel';
 import { statsPanel } from './ui/panels/statsPanel';
 import { financeTool } from './ui/panels/financePanel';
 import { rivalsTool } from './ui/panels/rivalsPanel';
+import { clubTool } from './ui/panels/clubPanel';
+import { showGameOver } from './ui/gameOver';
 import { clubhouseTool } from './ui/tools/clubhouseTool';
 import { irrigationTool } from './ui/tools/irrigationTool';
 import { Tool } from './ui/tools/tool';
@@ -74,6 +77,10 @@ async function startGame(game: Game): Promise<void> {
     refreshOverlay: () => overlayBar.refresh(),
   };
   const hud = createHud(ctx);
+  // career over: stop the clock and show the summary
+  const over = (reason: string) => { ctx.loop.speed = 0; showGameOver(root, game, reason, () => { location.href = location.pathname; }); };
+  game.events.on('gameOver', ({ reason }) => over(reason));
+  if (game.finance.gameOver) queueMicrotask(() => over(game.finance.gameOver!));
   const overlayBar = createOverlayBar(ctx);
   const sel = new HoleSelection();
   const entities = new EntityLayer(game, () => sel.id);
@@ -130,7 +137,7 @@ async function startGame(game: Game): Promise<void> {
   };
   const showCourse = () => {
     if (!ctx.inspector.isOwner(courseOwner)) return;
-    ctx.inspector.update(courseOwner, statsPanel(game, game.courses.list[0]?.id ?? 0, showCourse));
+    ctx.inspector.update(courseOwner, statsPanel(game, activeCourseId(game), showCourse));
   };
   setInterval(() => {
     // live panels refresh twice a second, but never while the player is typing in them
@@ -171,6 +178,7 @@ async function startGame(game: Game): Promise<void> {
     { make: () => servicesTool(game), hotkey: 'x' },
     { make: () => financeTool(game), hotkey: 'r' },
     { make: () => rivalsTool(game), hotkey: 'q' },
+    { make: () => clubTool(game), hotkey: 'z' },
     { make: () => irrigationTool(game), hotkey: 'i' },
     { make: () => staffTool(game), hotkey: 'e' },
     { make: () => programTool(game), hotkey: 'j' },

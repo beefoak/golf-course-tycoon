@@ -1,3 +1,4 @@
+import { isUnlocked } from '../rating/unlocks';
 import { Vec2 } from '../../core/geom';
 import { Result, fail, ok } from '../../core/result';
 import { commitPlan } from '../construction/plan';
@@ -61,7 +62,7 @@ export const CLUBHOUSE_LOT = 10;
 export const PARKING_TURNS = 3;
 
 /** Replaced by the reputation system in Task 42. */
-export const lodgingHooks = { unlocked: (_g: Game, _courseId: number): boolean => false };
+export const lodgingHooks = { unlocked: (g: Game, _courseId: number): boolean => isUnlocked(g, 'lodging') };
 
 /** Why a kind can't be built on this course yet (null = it can). */
 export function buildingLocked(g: Game, kind: BuildingKind, courseId: number): string | null {

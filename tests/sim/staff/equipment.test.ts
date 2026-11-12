@@ -49,6 +49,7 @@ test('condition decays without a mechanic and stays ≥ 80 with a skilled one', 
     const { g, courseId } = withShed();
     const keeper = hire(g, 'greenkeeper', courseId);
     if (withMechanic) { const m = hire(g, 'mechanic', courseId); m.skills.mechanics = 85; m.speed = 1; }
+    g.unlocks.push('equipmentTier3');
     const e = (g.dispatch({ t: 'buyEquipment', courseId, kind: 'fairwayMower', tier: 3 }) as { ok: true; value: { id: number; condition: number; broken: boolean } }).value;
     g.dispatch({ t: 'assignEquipment', id: e.id, staffId: keeper.id });
     let low = 100;

@@ -1,3 +1,4 @@
+import { activeCourseId } from '../../sim/course/active';
 import { Command } from '../../sim/commands';
 import { Game } from '../../sim/game';
 import { LOAN_TERMS, MISSED_LIMIT, loanLimit, outstanding } from '../../sim/economy/loans';
@@ -52,7 +53,7 @@ export function financeTool(g: Game): PanelTool {
       refresh();
     };
     const row = (k: string, v: string, style = '') => h('div', { class: 'row' }, h('span', { class: 'muted' }, k), h('span', { style }, v));
-    const courseId = g.courses.list[0]?.id ?? 0;
+    const courseId = activeCourseId(g);
     const f = g.finance;
     const head = h('div', null,
       h('h3', null, 'Finance'),

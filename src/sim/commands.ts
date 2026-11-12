@@ -43,6 +43,8 @@ export type Command =
   | { t: 'setRangeBucket'; courseId: number; price: number }
   | { t: 'setPricing'; courseId: number; patch: PricingPatch }
   | { t: 'takeLoan'; amount: number; termDays: number }
+  | { t: 'acceptEvent'; id: number }
+  | { t: 'declineEvent'; id: number }
   | { t: 'repayLoan'; id: number; amount?: number }
   | { t: 'setMembershipTier'; courseId: number; index: number; tier: MembershipTier | null }
   | { t: 'setGreenFee'; courseId: number; holes: number; fee: number }

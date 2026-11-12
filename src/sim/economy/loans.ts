@@ -22,6 +22,8 @@ export const LOAN_TO_VALUE = 0.5;
 export const LOAN_TERMS = [DAYS_PER_YEAR, DAYS_PER_YEAR * 3, DAYS_PER_YEAR * 5];
 /** Day-ends in the red (while owing money) before the bank calls it in. */
 export const MISSED_LIMIT = 3;
+/** Career bankruptcy: this far in the red with nothing left to borrow. */
+export const BANKRUPT_CASH = -250_000;
 
 export function buildingValue(g: Game): number {
   let v = 0;
@@ -93,6 +95,12 @@ export function payLoans(g: Game): void {
 export function checkSolvency(g: Game): void {
   const f = g.finance;
   if (g.ledger.unlimited) return;
+  if (g.difficulty !== 'sandbox' && !f.gameOver && g.ledger.cash < BANKRUPT_CASH && loanLimit(g) < -g.ledger.cash) {
+    f.gameOver = `Bankrupt: $${Math.round(-g.ledger.cash).toLocaleString()} in the red and the bank won't lend any more.`;
+    g.notify('bad', f.gameOver);
+    g.events.emit('gameOver', { reason: f.gameOver });
+    return;
+  }
   if (g.ledger.cash < 0 && f.loans.length) {
     f.missedPayments++;
     if (f.missedPayments >= MISSED_LIMIT && g.difficulty !== 'sandbox') {

@@ -1,3 +1,4 @@
+import { activeCourseId } from '../../sim/course/active';
 import { Command } from '../../sim/commands';
 import { Game } from '../../sim/game';
 import { ADDON_COST, BAY_RATE_PER_HOUR, FITTING_FEE, ITEM_LABEL, LESSON_FEE, MAX_BAYS, effectiveWholesale, proShopOf, simulatorHours } from '../../sim/business/proShop';
@@ -7,7 +8,7 @@ import { INPUT_STYLE, PanelTool, panelTool } from '../tools/panelTool';
 /** Pro shop: stock and prices, auto-reorder, add-ons (fitting, simulators, own apparel) and the day's takings. */
 export function proShopTool(g: Game): PanelTool {
   return panelTool(g, 'proShop', 'Pro shop', refresh => {
-    const courseId = g.courses.list[0]?.id ?? 0;
+    const courseId = activeCourseId(g);
     const shop = proShopOf(g, courseId);
     if (!shop) return h('div', null, h('h3', null, 'Pro shop'), h('div', { class: 'muted' }, 'Build a pro shop onto the clubhouse first (Amenities, N).'));
     const run = (c: Command, okText?: string) => {

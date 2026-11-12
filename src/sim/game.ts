@@ -39,6 +39,11 @@ import { CourseRatingInfo, ratingSystem } from './rating/courseRating';
 import { RepState, Reputation, attachReputation, newRepState } from './rating/reputation';
 import type { Review } from './rating/reviews';
 import { Rival, rivalSystem } from './rating/rivals';
+import { GolfEvent, acceptEvent, declineEvent, eventSystem } from './rating/events';
+import { MilestoneKey, milestoneSystem } from './rating/milestones';
+import { UnlockKey, isUnlocked, lockedReason } from './rating/unlocks';
+import { GRASSES } from './turf/grasses';
+import { TERRAINS } from './world/terrainTypes';
 import { booksSystem, loanSystem, repayLoan, takeLoan } from './economy/loans';
 import { Building, buildingSystem, placeBuilding, upgradeTier } from './business/buildings';
 import type { HoleResult } from './golfers/hole';
@@ -81,6 +86,7 @@ export type GameEvents = {
   thought: Thought;
   staff: { id: number };
   noParking: { courseId: number; golfers: number };
+  milestone: { key: MilestoneKey };
   gameOver: { reason: string };
 };
 
@@ -145,6 +151,13 @@ export class Game {
   repState: RepState = newRepState();
   /** the region's other courses (generated from the seed on first use) */
   rivals: Rival[] | null = null;
+  golfEvents: GolfEvent[] = [];
+  nextEventId = 1;
+  /** milestone → day reached */
+  milestones: Partial<Record<MilestoneKey, number>> = {};
+  unlocks: UnlockKey[] = [];
+  /** the course the panels are showing (0: the first) */
+  activeCourseId = 0;
   /** courses where carts must keep to the paths right now */
   cartPathOnly = new Set<number>();
   workOrders: WorkOrderBook = newOrderBook();
@@ -204,6 +217,8 @@ export class Game {
     g.registerSystem(ratingSystem);
     attachReputation(g);
     g.registerSystem(rivalSystem);
+    g.registerSystem(eventSystem);
+    g.registerSystem(milestoneSystem);
     g.registerSystem(loanSystem);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
@@ -251,6 +266,7 @@ export class Game {
       case 'penHole':
         return commitPenHole(this, c.input);
       case 'bunker':
+        if (c.sand === 'premium' && !isUnlocked(this, 'premiumSand')) return fail(lockedReason('premiumSand'));
         return commitPlan(this, planBunker(this, c.tiles, c.sand), 'construction');
       case 'digWater':
         return commitPlan(this, planDigWater(this, c.tiles), 'earthworks');
@@ -284,6 +300,10 @@ export class Game {
         return buyCarts(this, c.courseId, c.n);
       case 'setCartFee':
         return setCartFee(this, c.courseId, c.fee);
+      case 'acceptEvent':
+        return acceptEvent(this, c.id);
+      case 'declineEvent':
+        return declineEvent(this, c.id);
       case 'takeLoan':
         return takeLoan(this, c.amount, c.termDays);
       case 'repayLoan':
@@ -309,6 +329,7 @@ export class Game {
       case 'pauseOrder':
         return pauseOrder(this, c.id, c.paused ?? true);
       case 'buyEquipment':
+        if (c.tier === 3 && !isUnlocked(this, 'equipmentTier3')) return fail(lockedReason('equipmentTier3'));
         return buyEquipment(this, c.courseId, c.kind, c.tier);
       case 'sellEquipment':
         return sellEquipment(this, c.id);
@@ -343,8 +364,13 @@ export class Game {
         return placePipe(this, c.tiles);
       case 'setIrrigationSchedule':
         return setSchedule(this, c.schedule);
-      case 'setGrass':
+      case 'setGrass': {
+        // warm-season grasses that don't suit the climate wait for the unlock
+        const climate = TERRAINS[this.terrain].climate;
+        const spec = (GRASSES as Record<number, (typeof GRASSES)[keyof typeof GRASSES] | undefined>)[c.grass];
+        if (spec?.warm && spec.climateFit[climate] < 0.5 && !isUnlocked(this, 'exoticGrass')) return fail(lockedReason('exoticGrass'));
         return setGrass(this, c.tiles, c.grass, c.method);
+      }
       case 'setTurfSettings':
         return setTurfSettings(this, c.courseId, c.holeId, c.settings);
       case 'setGreenFee': {

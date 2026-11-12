@@ -24,10 +24,10 @@ export function showNewGame(root: HTMLElement, onStart: (o: NewGameOptions) => v
     h('option', { value: 'desert' }, 'Desert — rocky, arid, costly water'),
     h('option', { value: 'mountain' }, 'Mountain — steep, rocky, short season')) as HTMLSelectElement;
   const diff = h('select', null,
-    h('option', { value: 'easy' }, 'Easy — $5,000,000'),
-    h('option', { value: 'normal', selected: true }, 'Normal — $3,000,000'),
-    h('option', { value: 'hard' }, 'Hard — $1,500,000'),
-    h('option', { value: 'sandbox' }, 'Sandbox — unlimited money')) as HTMLSelectElement;
+    h('option', { value: 'easy' }, 'Career, easy — $5,000,000, loans at 4%'),
+    h('option', { value: 'normal', selected: true }, 'Career, normal — $3,000,000, loans at 6%'),
+    h('option', { value: 'hard' }, 'Career, hard — $1,500,000, loans at 9%'),
+    h('option', { value: 'sandbox' }, 'Sandbox — unlimited money, everything unlocked')) as HTMLSelectElement;
   diff.value = 'normal';
   const back = h('div', { class: 'modal-back' });
   const start = () => {
@@ -39,7 +39,8 @@ export function showNewGame(root: HTMLElement, onStart: (o: NewGameOptions) => v
     h('label', null, 'Map seed (share it to replay a map)'),
     h('div', { style: 'display:flex;gap:6px' }, seed, h('button', { class: 'btn', onclick: () => { seed.value = pick(); } }, '🎲')),
     h('label', null, 'Terrain'), terrain,
-    h('label', null, 'Difficulty'), diff,
+    h('label', null, 'Mode'), diff,
+    h('div', { class: 'muted' }, 'Career: earn milestones and unlocks, keep the bank happy — go bankrupt and it\'s over.'),
     h('div', { class: 'actions' }, h('button', { class: 'btn on', onclick: start }, 'Start new game')),
     store ? savesSection(store, error) : null));
   seed.addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
