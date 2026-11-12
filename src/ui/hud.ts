@@ -28,6 +28,8 @@ export function createHud(ctx: UiContext): { el: HTMLElement; refresh(): void } 
   };
   window.addEventListener('keydown', e => {
     if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+    // Space swings the club in play mode
+    if (e.key === ' ' && ctx.tools.active?.id === 'play') return;
     if (e.key === ' ') { e.preventDefault(); setSpeed(ctx.loop.speed === 0 ? lastSpeed : 0); return; }
     const sp = SPEEDS.find(x => x.key === e.key && x.s !== 0);
     if (sp) setSpeed(sp.s);

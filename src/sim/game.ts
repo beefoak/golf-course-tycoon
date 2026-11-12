@@ -158,6 +158,8 @@ export class Game {
   unlocks: UnlockKey[] = [];
   /** the course the panels are showing (0: the first) */
   activeCourseId = 0;
+  /** the player's own rounds (play mode) */
+  playerRounds: import('../play/playMode').PlayerRound[] = [];
   /** courses where carts must keep to the paths right now */
   cartPathOnly = new Set<number>();
   workOrders: WorkOrderBook = newOrderBook();

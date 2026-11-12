@@ -42,6 +42,7 @@ import { statsPanel } from './ui/panels/statsPanel';
 import { financeTool } from './ui/panels/financePanel';
 import { rivalsTool } from './ui/panels/rivalsPanel';
 import { clubTool } from './ui/panels/clubPanel';
+import { playTool } from './ui/panels/playPanel';
 import { showGameOver } from './ui/gameOver';
 import { clubhouseTool } from './ui/tools/clubhouseTool';
 import { irrigationTool } from './ui/tools/irrigationTool';
@@ -179,6 +180,7 @@ async function startGame(game: Game): Promise<void> {
     { make: () => financeTool(game), hotkey: 'r' },
     { make: () => rivalsTool(game), hotkey: 'q' },
     { make: () => clubTool(game), hotkey: 'z' },
+    { make: () => playTool(game, ctx.loop), hotkey: '0' },
     { make: () => irrigationTool(game), hotkey: 'i' },
     { make: () => staffTool(game), hotkey: 'e' },
     { make: () => programTool(game), hotkey: 'j' },
