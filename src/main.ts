@@ -39,6 +39,7 @@ import { ThoughtBubbles } from './ui/bubbles';
 import { golferPanel } from './ui/panels/golferPanel';
 import { statsPanel } from './ui/panels/statsPanel';
 import { financeTool } from './ui/panels/financePanel';
+import { rivalsTool } from './ui/panels/rivalsPanel';
 import { clubhouseTool } from './ui/tools/clubhouseTool';
 import { irrigationTool } from './ui/tools/irrigationTool';
 import { Tool } from './ui/tools/tool';
@@ -169,6 +170,7 @@ async function startGame(game: Game): Promise<void> {
     { make: () => proShopTool(game), hotkey: 'y' },
     { make: () => servicesTool(game), hotkey: 'x' },
     { make: () => financeTool(game), hotkey: 'r' },
+    { make: () => rivalsTool(game), hotkey: 'q' },
     { make: () => irrigationTool(game), hotkey: 'i' },
     { make: () => staffTool(game), hotkey: 'e' },
     { make: () => programTool(game), hotkey: 'j' },

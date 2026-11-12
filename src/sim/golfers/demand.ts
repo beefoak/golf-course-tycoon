@@ -7,6 +7,7 @@ import { TeeSheet, roundHoles, roundOptions } from './teeSheet';
 import { averagePrice, priceFor, recordFill } from '../business/pricing';
 import { bookMembers, reservedSlots } from '../business/memberships';
 import { reputation } from '../rating/reputation';
+import { competitionFactor, rivalFactor } from '../rating/rivals';
 import { isClosedSeason, weatherDemandFactor } from '../turf/weather';
 
 export const BASE_DEMAND = 30;
@@ -15,6 +16,8 @@ export const BASE_DEMAND = 30;
 export const demandHooks = {
   reputation: (g: Game, course: Course): number => 0.4 + 0.24 * reputation(g, course.id).overall,
   weather: (g: Game): number => (isClosedSeason(g) ? 0 : weatherDemandFactor(g.weather)),
+  /** rival courses: cheaper or better-liked neighbours take golfers away */
+  competition: (g: Game, course: Course): number => competitionFactor(g, course),
 };
 
 export function teeSheetFor(g: Game, courseId: number): TeeSheet {
@@ -40,7 +43,7 @@ export function dailyDemand(g: Game, course: Course): number {
   const open = course.holes.filter(h => h.state === 'open').length;
   if (!open || !clubhouseOf(g, course.id)) return 0;
   const size = Math.max(0.3, Math.min(2, open / 9));
-  const expected = BASE_DEMAND * demandHooks.reputation(g, course) * priceFactor(avgFeePer18(g, course)) * demandHooks.weather(g) * size;
+  const expected = BASE_DEMAND * demandHooks.reputation(g, course) * priceFactor(avgFeePer18(g, course)) * demandHooks.weather(g) * size * demandHooks.competition(g, course);
   // the tee sheet caps it: one group of up to 4 per slot
   const opts = roundOptions(course);
   const sheet = teeSheetFor(g, course.id);
@@ -68,7 +71,9 @@ function pickGolfer(g: Game, course: Course, busy: Set<number>): Golfer {
   let gf = g.golfers.spawn(rng);
   for (let tries = 0; tries < 2; tries++) {
     const rel = (rep.bySegment[gf.segment] + rep.byType[gf.type]) / 2 - rep.overall;
-    if (rng.chance(Math.max(0.3, Math.min(1, 0.8 + 0.5 * rel)))) break;
+    // and segments the rivals win over come less
+    const rival = rivalFactor(g, course, gf.segment) / Math.max(0.3, competitionFactor(g, course));
+    if (rng.chance(Math.max(0.3, Math.min(1, (0.8 + 0.5 * rel) * rival)))) break;
     g.golfers.all.delete(gf.id);
     gf = g.golfers.spawn(rng);
   }

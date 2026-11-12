@@ -38,6 +38,7 @@ import { FinanceState, attachFinance, newFinance } from './economy/finance';
 import { CourseRatingInfo, ratingSystem } from './rating/courseRating';
 import { RepState, Reputation, attachReputation, newRepState } from './rating/reputation';
 import type { Review } from './rating/reviews';
+import { Rival, rivalSystem } from './rating/rivals';
 import { booksSystem, loanSystem, repayLoan, takeLoan } from './economy/loans';
 import { Building, buildingSystem, placeBuilding, upgradeTier } from './business/buildings';
 import type { HoleResult } from './golfers/hole';
@@ -142,6 +143,8 @@ export class Game {
   /** courseId → today's reputation */
   reputation = new Map<number, Reputation>();
   repState: RepState = newRepState();
+  /** the region's other courses (generated from the seed on first use) */
+  rivals: Rival[] | null = null;
   /** courses where carts must keep to the paths right now */
   cartPathOnly = new Set<number>();
   workOrders: WorkOrderBook = newOrderBook();
@@ -200,6 +203,7 @@ export class Game {
     attachFinance(g);
     g.registerSystem(ratingSystem);
     attachReputation(g);
+    g.registerSystem(rivalSystem);
     g.registerSystem(loanSystem);
     g.groupsOnHole = id => countGroupsOnHole(g, id);
     return g;
