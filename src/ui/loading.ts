@@ -71,10 +71,15 @@ export function showLoading(parent: HTMLElement, lines: string[] = LOADING_LINES
   };
 }
 
-/** Resolve after the browser has painted, so a loading line shows before the next blocking step. */
+/**
+ * Resolve after the browser has painted, so a loading line shows before the next blocking step.
+ * A background tab gets no animation frames, so a short timer stands in and loading carries on.
+ */
 export function afterPaint(): Promise<void> {
   return new Promise(resolve => {
-    if (typeof requestAnimationFrame === 'undefined') { setTimeout(resolve, 0); return; }
-    requestAnimationFrame(() => setTimeout(resolve, 0));
+    let done = false;
+    const go = () => { if (!done) { done = true; resolve(); } };
+    setTimeout(go, 100);
+    if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(() => setTimeout(go, 0));
   });
 }

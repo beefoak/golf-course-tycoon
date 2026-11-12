@@ -282,7 +282,7 @@ async function startGame(game: Game, opts: { tutorial?: boolean; loading?: Loadi
   (window as unknown as { gct: UiContext }).gct = ctx;
   // the first frames build every visible chunk: lift the loading card once they're on screen
   const loading = opts.loading;
-  if (loading) requestAnimationFrame(() => requestAnimationFrame(() => loading.done()));
+  if (loading) void afterPaint().then(afterPaint).then(() => loading.done());
 }
 
 /** Generate a new course behind the loading card (it repaints between the slow steps). */

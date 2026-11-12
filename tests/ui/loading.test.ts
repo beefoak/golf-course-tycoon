@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { LOADING_LINES, MIN_LINE_MS, showLoading } from '../../src/ui/loading';
+import { LOADING_LINES, MIN_LINE_MS, afterPaint, showLoading } from '../../src/ui/loading';
 
 test('the loading card rotates flavour lines and goes away when done', () => {
   vi.useFakeTimers();
@@ -26,4 +26,16 @@ test('the loading card rotates flavour lines and goes away when done', () => {
 
 test('the default lines include the classics', () => {
   for (const s of ['Laying sod', 'Placing boulders', 'Filling ponds']) expect(LOADING_LINES).toContain(s);
+});
+
+test('afterPaint still resolves in a background tab with no animation frames', async () => {
+  vi.useFakeTimers();
+  const raf = globalThis.requestAnimationFrame;
+  globalThis.requestAnimationFrame = () => 0; // frames never come
+  let resolved = false;
+  void afterPaint().then(() => { resolved = true; });
+  await vi.advanceTimersByTimeAsync(100);
+  expect(resolved).toBe(true);
+  globalThis.requestAnimationFrame = raf;
+  vi.useRealTimers();
 });
