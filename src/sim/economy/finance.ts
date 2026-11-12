@@ -27,7 +27,7 @@ export function newFinance(): FinanceState {
 /** Logs are kept for two years. */
 export const HISTORY_DAYS = DAYS_PER_YEAR * 2;
 export const PROPERTY_TAX_PER_YEAR = 0.01;
-export const INSURANCE_PER_HOLE = 40;
+export const INSURANCE_PER_HOLE = 25;
 
 /** Supplies a practice uses per tile worked ($). */
 export const SUPPLY_PER_TILE: Partial<Record<string, number>> = { fertilize: 0.35, topdress: 0.25, spray: 0.3, fixDivots: 0.05 };

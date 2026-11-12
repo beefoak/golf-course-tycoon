@@ -11,6 +11,15 @@ import { h, money } from '../dom';
 import { Tool } from './tool';
 
 const MAX_POINTS = 4;
+/** Guide rings drawn round the tee: where a green makes a par 3, 4 or 5. */
+export const PAR_RINGS_YD: { yd: number; label: string; color: number }[] = [
+  { yd: 100, label: 'par 3 from 100 yd', color: 0xffffff },
+  { yd: 250, label: 'par 3 up to 250 yd', color: 0x9be070 },
+  { yd: 470, label: 'par 4 up to 470 yd', color: 0xffe066 },
+  { yd: 600, label: 'par 5 to 600 yd', color: 0xff9966 },
+];
+/** Re-cost the hovered route at most this often (ms). */
+const LIVE_COST_MS = 250;
 
 export function penTool(g: Game, onCreated?: (holeId: number) => void): Tool {
   let points: Vec2[] = [];
@@ -18,6 +27,18 @@ export function penTool(g: Game, onCreated?: (holeId: number) => void): Tool {
   let confirming = false;
   const widths = { ...PEN_DEFAULTS };
   let preview: { cost: number; warnings: string[] } | null = null;
+  // a running estimate while the next point is being aimed
+  let live: { key: string; cost: number; warnings: string[]; at: number } | null = null;
+  const liveEstimate = (): typeof live => {
+    const r = route();
+    if (r.length < 2 || confirming) return null;
+    const key = r.map(p => `${p.x},${p.y}`).join(';');
+    const now = performance.now();
+    if (live && (live.key === key || now - live.at < LIVE_COST_MS)) return live;
+    const d = planPenHole(g, { courseId: activeCourseId(g), route: r, ...widths });
+    live = { key, cost: d.plan.cost, warnings: d.warnings, at: now };
+    return live;
+  };
 
   const snap = (t: Vec2): Vec2 => ({ x: Math.round(t.x), y: Math.round(t.y) });
   const reset = () => { points = []; confirming = false; preview = null; };
@@ -72,7 +93,9 @@ export function penTool(g: Game, onCreated?: (holeId: number) => void): Tool {
         const warn = preview.warnings.length ? ` · ⚠ ${preview.warnings.join('; ')}` : '';
         return `${base} · cost ${money(preview.cost)} · Enter to build, Esc to cancel${warn}`;
       }
-      return `${base} · ${points.length < 2 ? 'click the next point' : 'double-click to place the green'} · Backspace undoes · Esc cancels`;
+      const est = liveEstimate();
+      const cost = est ? ` · ~${money(est.cost)}${est.warnings.length ? ` · ⚠ ${est.warnings[0]}` : ''}` : '';
+      return `${base}${cost} · ${points.length < 2 ? 'click a dogleg point or double-click the green' : 'double-click to place the green'} · Backspace undoes · Esc cancels`;
     },
     drawPreview(gfx: Graphics) {
       const r = route().map(p => ({ x: (p.x + 0.5) * TILE_PX, y: (p.y + 0.5) * TILE_PX }));
@@ -89,6 +112,8 @@ export function penTool(g: Game, onCreated?: (holeId: number) => void): Tool {
         const green = r[r.length - 1]!;
         gfx.circle(green.x, green.y, yardsToTiles(widths.greenRadiusYd) * TILE_PX).fill({ color: 0xb8f088, alpha: 0.6 });
       }
+      // par guide rings round the tee until the green is placed
+      if (!confirming) for (const ring of PAR_RINGS_YD) gfx.circle(r[0]!.x, r[0]!.y, yardsToTiles(ring.yd) * TILE_PX).stroke({ width: 3, color: ring.color, alpha: 0.35 });
       for (const p of r) gfx.circle(p.x, p.y, 10).fill({ color: 0xffffff, alpha: 0.9 });
       gfx.rect(r[0]!.x - 32, r[0]!.y - 16, 64, 32).stroke({ width: 3, color: 0xffffff });
     },
@@ -101,6 +126,8 @@ export function penTool(g: Game, onCreated?: (holeId: number) => void): Tool {
       return h('div', null,
         h('h3', null, 'Fairway Pen'),
         h('div', { class: 'muted' }, 'Click the tee, up to two dogleg points, then double-click the green. Enter builds the draft; you can then shape it, add bunkers, tee boxes and pins.'),
+        h('div', { class: 'muted', style: 'margin-top:4px' }, 'Rings round the tee show where the green makes each par: ', ...PAR_RINGS_YD.map(r => h('span', { style: `color:#${r.color.toString(16).padStart(6, '0')};margin-right:6px` }, `● ${r.label}`))),
+        h('div', { class: 'muted' }, 'Next: seed it from the Holes tool (H). Four pins and a back tee are placed for you; move them with the Green (G) and Holes tools.'),
         slider('Fairway width', 'fairwayWidthYd', 20, 60),
         slider('Rough width (each side)', 'roughWidthYd', 0, 40),
         slider('Green radius', 'greenRadiusYd', 8, 22));

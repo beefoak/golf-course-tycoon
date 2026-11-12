@@ -3,7 +3,7 @@ import { Rng } from '../../core/rng';
 import { TILE_M } from '../../core/units';
 import { TICKS_PER_MIN } from '../clock';
 import type { Game, System } from '../game';
-import { findPath } from '../world/pathfind';
+import { findPath, tileCost } from '../world/pathfind';
 import { Surface } from '../world/tiles';
 import { addWear } from '../turf/turf';
 import { CART_PATH_ONLY_SPEED, playingGolfer } from '../business/carts';
@@ -134,7 +134,9 @@ function startHoleFor(g: Game, grp: Group): void {
 }
 
 function walkTo(g: Game, grp: Group, to: Vec2): void {
-  const p = findPath(g, grp.pos, to, grp.usesCart ? 'cart' : 'walk') ?? findPath(g, grp.pos, to, 'walk');
+  // carts can't reach a ball on a green or tee: walk there rather than search the whole map for a way
+  const cart = grp.usesCart && Number.isFinite(tileCost(g, Math.floor(to.x), Math.floor(to.y), 'cart'));
+  const p = (cart ? findPath(g, grp.pos, to, 'cart') : null) ?? findPath(g, grp.pos, to, 'walk');
   grp.path = p ? p.slice(1) : [{ ...to }];
 }
 

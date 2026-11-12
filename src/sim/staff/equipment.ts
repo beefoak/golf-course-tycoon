@@ -22,7 +22,7 @@ export const EQUIPMENT: Record<EquipmentKind, EquipmentSpec> = {
   aerator: { name: 'Aerator', practice: 'aerate', tiers: [T(15_000, 400, 0.03, 6), T(35_000, 900, 0.02, 8), T(70_000, 1600, 0.01, 9)] },
   sprayer: { name: 'Sprayer', practice: 'spray', tiers: [T(12_000, 1500, 0.02, 5), T(30_000, 3000, 0.012, 7), T(60_000, 5000, 0.006, 8)] },
   bunkerRake: { name: 'Bunker rake', practice: 'rakeBunker', tiers: [T(14_000, 300, 0.02, 4), T(26_000, 600, 0.012, 5), T(45_000, 1000, 0.006, 6)] },
-  utilityVehicle: { name: 'Utility vehicle', practice: 'fixDivots', tiers: [T(10_000, 400, 0.015, 4), T(20_000, 700, 0.01, 5), T(35_000, 1100, 0.005, 6)] },
+  utilityVehicle: { name: 'Utility vehicle', practice: 'fixDivots', tiers: [T(10_000, 4000, 0.015, 4), T(20_000, 6000, 0.01, 5), T(35_000, 9000, 0.005, 6)] },
   topdresser: { name: 'Topdresser', practice: 'topdress', tiers: [T(18_000, 600, 0.02, 5), T(38_000, 1200, 0.012, 7), T(65_000, 2000, 0.006, 8)] },
 };
 export const EQUIPMENT_KINDS = Object.keys(EQUIPMENT) as EquipmentKind[];

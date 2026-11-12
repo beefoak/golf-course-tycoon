@@ -66,11 +66,12 @@ export function showNewGame(root: HTMLElement, onStart: (o: NewGameOptions) => v
     scenDesc.textContent = s ? `${s.description} (${s.terrain}, ${s.difficulty})` : '';
     freeBits.style.display = s ? 'none' : '';
   });
+  const tutorial = h('input', { type: 'checkbox', checked: true, style: 'width:auto;margin:0' }) as HTMLInputElement;
   const back = h('div', { class: 'modal-back' });
   const start = () => {
     back.remove();
     if (scen.value) return onStart(scenarioOptions(scen.value));
-    onStart({ seed: parseSeed(seed.value), terrain: terrain.value as TerrainType, difficulty: diff.value as Difficulty, options: options() });
+    onStart({ seed: parseSeed(seed.value), terrain: terrain.value as TerrainType, difficulty: diff.value as Difficulty, options: options(), tutorial: tutorial.checked });
   };
   back.appendChild(h('div', { class: 'panel modal' },
     h('h1', null, 'Golf Course Tycoon'),
@@ -84,7 +85,8 @@ export function showNewGame(root: HTMLElement, onStart: (o: NewGameOptions) => v
     h('label', null, 'Terrain'), terrain,
     h('label', null, 'Mode'), diff,
     h('div', { class: 'muted' }, 'Career: earn milestones and unlocks, keep the bank happy — go bankrupt and it\'s over.'),
-    advanced);
+    advanced,
+    h('label', { style: 'display:flex;gap:6px;align-items:center' }, tutorial, 'Guide me through my first hole (tutorial)'));
   seed.addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
   root.appendChild(back);
 }

@@ -51,10 +51,18 @@ import { ToolController } from './ui/tools/toolController';
 import { deserialize, serialize } from './sim/save';
 import { AUTOSAVE, AUTOSAVE_DAYS, SaveStore } from './sim/saveStore';
 import { savePanel } from './ui/panels/savePanel';
+import { Sfxr, attachAudio } from './ui/audio';
+import { startTutorial } from './ui/tutorial';
+import { toggleShortcuts } from './ui/shortcuts';
+import { lastStroke } from './sim/construction/undo';
+import { money } from './ui/dom';
+
+/** Real seconds a construction stroke can be taken back for (proposal: 10 s, same game day). */
+const UNDO_WINDOW_MS = 10_000;
 
 const store = new SaveStore();
 
-async function startGame(game: Game): Promise<void> {
+async function startGame(game: Game, opts: { tutorial?: boolean } = {}): Promise<void> {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const root = document.getElementById('ui') as HTMLElement;
   const app = await createPixiApp(canvas);
@@ -163,31 +171,60 @@ async function startGame(game: Game): Promise<void> {
   const green = greenTool(game, sel, chunks, () => overlayBar.refresh());
   const holes = holeTool(game, sel, ctx.inspector, () => ctx.tools.setTool(green));
   const toolbar = createToolbar(ctx, [
-    { make: () => landTool(game), hotkey: 'l' },
-    { make: () => penTool(game, id => { sel.set(id); ctx.tools.setTool(holes); }), hotkey: 'f' },
-    { make: () => holes, hotkey: 'h' },
-    { make: () => green, hotkey: 'g' },
-    { make: () => paintTool(game), hotkey: 'p' },
-    { make: () => terrainTool(game), hotkey: 't' },
-    { make: () => hazardTool(game), hotkey: 'b' },
-    { make: () => pathTool(game), hotkey: 'k' },
-    { make: () => structureTool(game), hotkey: 'u' },
-    { make: () => clubhouseTool(game), hotkey: 'c' },
-    { make: () => clubhouseTool(game, 'maintenance'), hotkey: 'm' },
-    { make: () => amenityTool(game), hotkey: 'n' },
-    { make: () => proShopTool(game), hotkey: 'y' },
-    { make: () => servicesTool(game), hotkey: 'x' },
-    { make: () => financeTool(game), hotkey: 'r' },
-    { make: () => rivalsTool(game), hotkey: 'q' },
-    { make: () => clubTool(game), hotkey: 'z' },
-    { make: () => playTool(game, ctx.loop), hotkey: '0' },
-    { make: () => irrigationTool(game), hotkey: 'i' },
-    { make: () => staffTool(game), hotkey: 'e' },
-    { make: () => programTool(game), hotkey: 'j' },
-    { make: () => courseOwner, hotkey: 'o' },
-    { make: () => saveTool, hotkey: 'v' },
+    { make: () => landTool(game), hotkey: 'l', hint: 'buy and sell land parcels' },
+    { make: () => penTool(game, id => { sel.set(id); ctx.tools.setTool(holes); }), hotkey: 'f', hint: 'draw a new hole: tee, doglegs, green' },
+    { make: () => holes, hotkey: 'h', hint: 'select a hole: tee boxes, par, seed or sod, close and reopen' },
+    { make: () => green, hotkey: 'g', hint: 'shape the selected green and place its pins' },
+    { make: () => paintTool(game), hotkey: 'p', hint: 'paint fairway, rough, tees and other surfaces' },
+    { make: () => terrainTool(game), hotkey: 't', hint: 'raise, lower, flatten and smooth the ground' },
+    { make: () => hazardTool(game), hotkey: 'b', hint: 'bunkers, ponds and trees' },
+    { make: () => pathTool(game), hotkey: 'k', hint: 'cart paths and bridges' },
+    { make: () => structureTool(game), hotkey: 'u', hint: 'benches, ball washers, drink stations, shelters' },
+    { make: () => clubhouseTool(game), hotkey: 'c', hint: 'place or upgrade the clubhouse (by the road)' },
+    { make: () => clubhouseTool(game, 'maintenance'), hotkey: 'm', hint: 'maintenance building: equipment storage and a bigger crew' },
+    { make: () => amenityTool(game), hotkey: 'n', hint: 'range, practice green, restaurant, parking, lodge' },
+    { make: () => proShopTool(game), hotkey: 'y', hint: 'pro shop stock, prices and add-ons' },
+    { make: () => servicesTool(game), hotkey: 'x', hint: 'carts, menus and other services' },
+    { make: () => financeTool(game), hotkey: 'r', hint: 'statements, cash chart, loans, per-hole costs' },
+    { make: () => rivalsTool(game), hotkey: 'q', hint: 'rival courses in the region and your ranking' },
+    { make: () => clubTool(game), hotkey: 'z', hint: 'events, milestones, unlocks and scenario goals' },
+    { make: () => playTool(game, ctx.loop, putt => sfx.play(putt ? 'putt' : 'strike')), hotkey: '0', hint: 'play your own course with the swing meter' },
+    { make: () => irrigationTool(game), hotkey: 'i', hint: 'pump house, pipes, sprinklers and the watering schedule' },
+    { make: () => staffTool(game), hotkey: 'e', hint: 'hire, train and manage the crew' },
+    { make: () => programTool(game), hotkey: 'j', hint: 'the maintenance program: what gets done how often' },
+    { make: () => courseOwner, hotkey: 'o', hint: 'course stats: rating, slope, pace, reviews, prices' },
+    { make: () => saveTool, hotkey: 'v', hint: 'save, load and export games' },
   ]);
   root.append(hud.el, toolbar, ctx.inspector.el, createNotifications(ctx), h('div', { class: 'panel bottombar' }, overlayBar.el, status));
+
+  // sound: starts on the first click or key (browsers block audio before one), mute in the HUD
+  const sfx = new Sfxr();
+  const unlock = () => sfx.unlock();
+  window.addEventListener('pointerdown', unlock, { once: true });
+  window.addEventListener('keydown', unlock, { once: true });
+  attachAudio(game, sfx, () => loop.speed);
+  const muteBtn = h('button', { class: 'btn', title: 'Sound on/off' }, sfx.muted ? '🔇' : '🔊');
+  muteBtn.addEventListener('click', () => { sfx.setMuted(!sfx.muted); muteBtn.textContent = sfx.muted ? '🔇' : '🔊'; });
+  const helpBtn = h('button', { class: 'btn', title: 'Keyboard shortcuts (?)', onclick: () => toggleShortcuts(root, toolbar) }, '?');
+  hud.el.append(muteBtn, helpBtn);
+
+  // undo the last construction stroke: Ctrl+Z within UNDO_WINDOW_MS of building it
+  let strokeAt = 0;
+  game.events.on('command', ({ cmd, ok }) => { if (ok && cmd.t !== 'undoStroke' && lastStroke(game)) strokeAt = performance.now(); });
+  window.addEventListener('keydown', e => {
+    if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+    if (e.key === '?') { toggleShortcuts(root, toolbar); return; }
+    if (!(e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey))) return;
+    e.preventDefault();
+    const s = lastStroke(game);
+    if (!s) { game.notify('info', 'Nothing to undo'); return; }
+    if (performance.now() - strokeAt > UNDO_WINDOW_MS) { game.notify('warn', 'Too late to undo: strokes can be taken back for 10 seconds'); return; }
+    const r = game.dispatch({ t: 'undoStroke' });
+    game.notify(r.ok ? 'info' : 'warn', r.ok ? `Undone: ${s.label} — ${money(s.cost)} refunded` : r.reason);
+    overlayBar.refresh();
+  });
+
+  if (opts.tutorial) startTutorial(root, game);
   game.events.on('cash', () => { if (overlayBar.current() === 'land') overlayBar.refresh(); });
 
   // camera controls: WASD / arrows, wheel zoom, right- or middle-drag pan
@@ -235,7 +272,7 @@ async function startGame(game: Game): Promise<void> {
     crew.update(camera, canvas.clientWidth, canvas.clientHeight, performance.now());
     bubbles.update(camera, canvas.clientWidth, canvas.clientHeight);
     ctx.tools.drawPreview();
-    ctx.setStatus(ctx.tools.active?.status?.() ?? 'Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · M maintenance · N amenities · Y pro shop · X services · I irrigation · E staff · J program · O course · V save · click a golfer or crew member · Space pause');
+    ctx.setStatus(ctx.tools.active?.status?.() ?? '? shortcuts · Ctrl+Z undo · Right-drag or WASD to pan · wheel to zoom · L land · F fairway pen · H holes · G green · P paint · T terrain · B hazards · K paths · C clubhouse · M maintenance · N amenities · Y pro shop · X services · I irrigation · E staff · J program · O course · V save · click a golfer or crew member · Space pause');
     hudTimer += t.deltaMS;
     if (hudTimer > 200) { hudTimer = 0; hud.refresh(); }
   });
@@ -255,6 +292,6 @@ async function boot(): Promise<void> {
     if (r.ok) return startGame(r.value);
     error = r.reason;
   }
-  showNewGame(root, (o: NewGameOptions) => void startGame(Game.create(o)), store, error);
+  showNewGame(root, (o: NewGameOptions) => void startGame(Game.create(o), { tutorial: o.tutorial }), store, error);
 }
 void boot();

@@ -6,6 +6,7 @@ import { GameClock } from './clock';
 import { Command } from './commands';
 import { Difficulty, DifficultyOptions, resolveDifficulty } from './difficulty';
 import { scenarioSystem, startScenario } from './modes/scenarios';
+import { undoStroke } from './construction/undo';
 import { Ledger } from './economy/ledger';
 import { ParcelGrid } from './land/parcels';
 import { commitPlan } from './construction/plan';
@@ -69,6 +70,8 @@ export interface NewGameOptions {
   options?: Partial<DifficultyOptions>;
   /** a built-in scenario id (sets itself up on the first day) */
   scenario?: string;
+  /** UI only: run the guided first-hole tutorial */
+  tutorial?: boolean;
 }
 
 export interface Notification {
@@ -93,6 +96,8 @@ export type GameEvents = {
   noParking: { courseId: number; golfers: number };
   milestone: { key: MilestoneKey };
   gameOver: { reason: string };
+  /** every dispatched command and whether it worked (tutorial, undo, audio) */
+  command: { cmd: Command; ok: boolean };
 };
 
 export interface System {
@@ -255,6 +260,7 @@ export class Game {
     const before = this.ledger.cash;
     const r = this.handle(c);
     if (this.ledger.cash !== before) this.events.emit('cash', { cash: this.ledger.cash });
+    this.events.emit('command', { cmd: c, ok: r.ok });
     return r;
   }
 
@@ -281,6 +287,8 @@ export class Game {
       }
       case 'penHole':
         return commitPenHole(this, c.input);
+      case 'undoStroke':
+        return undoStroke(this);
       case 'bunker':
         if (c.sand === 'premium' && !isUnlocked(this, 'premiumSand')) return fail(lockedReason('premiumSand'));
         return commitPlan(this, planBunker(this, c.tiles, c.sand), 'construction');

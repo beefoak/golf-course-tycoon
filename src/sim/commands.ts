@@ -18,6 +18,8 @@ export type Command =
   | { t: 'terrain'; tiles: Vec2[]; op: TerrainOp }
   | { t: 'shapeGreen'; holeId: number; tiles: Vec2[]; op: TerrainOp }
   | { t: 'penHole'; input: PenInput }
+  /** take back the last construction stroke (same game day, full refund) */
+  | { t: 'undoStroke' }
   | { t: 'bunker'; tiles: Vec2[]; sand: SandType }
   | { t: 'digWater'; tiles: Vec2[] }
   | { t: 'fillWater'; tiles: Vec2[] }

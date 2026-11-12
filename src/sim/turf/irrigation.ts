@@ -12,7 +12,7 @@ export const SPRINKLER_RADIUS = 9; // tiles (18 m)
 export const SPRINKLER_COST = 900;
 export const PIPE_COST_PER_TILE = 15;
 export const REPAIR_COST = 150;
-export const WATER_COST_PER_M3 = 1.2;
+export const WATER_COST_PER_M3 = 0.6;
 /** Water a head throws per minute of run time. */
 export const SPRINKLER_M3_PER_MIN = 0.4;
 /** Moisture points a tile gains per minute under a full-pressure head. */

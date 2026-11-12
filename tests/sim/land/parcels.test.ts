@@ -1,4 +1,4 @@
-import { ParcelGrid, SELL_BACK_RATE } from '../../../src/sim/land/parcels';
+import { PRICE_MAX, PRICE_MIN, ParcelGrid, SELL_BACK_RATE } from '../../../src/sim/land/parcels';
 import { Ledger } from '../../../src/sim/economy/ledger';
 import { generateWorld } from '../../../src/sim/world/mapgen';
 import { Rng } from '../../../src/core/rng';
@@ -30,7 +30,7 @@ test('sell refused with reason when blockedReason given', () => {
 });
 test('prices within bounds for generated map and rounded to $1,000', () => {
   const w = generateWorld(1, 'parkland', 1000); const g = ParcelGrid.fromWorld(w, new Rng(1));
-  for (const p of g.price) { expect(p).toBeGreaterThanOrEqual(20_000); expect(p).toBeLessThanOrEqual(150_000); expect(p % 1000).toBe(0); }
+  for (const p of g.price) { expect(p).toBeGreaterThanOrEqual(PRICE_MIN); expect(p).toBeLessThanOrEqual(PRICE_MAX); expect(p % 1000).toBe(0); }
   expect(new Set(g.price).size).toBeGreaterThan(5);
 });
 test('parcels next to the road are adjacent', () => {

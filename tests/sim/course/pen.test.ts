@@ -54,3 +54,14 @@ test('rejects routes with fewer than 2 or more than 4 points', () => {
   expect(commitPenHole(g, input(c.id, [{ x: 50, y: 10 }])).ok).toBe(false);
   expect(g.dispatch({ t: 'penHole', input: input(c.id, [{ x: 50, y: 10 }, { x: 50, y: 50 }, { x: 50, y: 90 }, { x: 50, y: 130 }, { x: 50, y: 170 }]) }).ok).toBe(false);
 });
+test('a default pin that lands on rock is replaced from the rest of the green', () => {
+  const g = big(); const c = g.courses.create('Main');
+  const route = [{ x: 50, y: 10 }, { x: 50, y: 110 }];
+  const p0 = planPenHole(g, input(c.id, route)).draftHole.pins[0]!;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) g.world.feature[g.world.idx(p0.x + dx, p0.y + dy)] = Feature.Rock;
+  const r = commitPenHole(g, input(c.id, route));
+  expect(r.ok).toBe(true); if (!r.ok) return;
+  expect(r.value.pins.length).toBe(4);
+  for (const p of r.value.pins) expect(g.world.surface[g.world.idx(p.x, p.y)]).toBe(Surface.Green);
+  expect(r.value.pins.some(p => p.x === p0.x && p.y === p0.y)).toBe(false);
+});

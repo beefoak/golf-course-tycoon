@@ -34,11 +34,16 @@ export function buildingValue(g: Game): number {
   }
   return v;
 }
+/** What the bank counts per open hole: a playable course is worth more than the bare land. */
+export const HOLE_COLLATERAL = 120_000;
+export function courseValue(g: Game): number {
+  return g.courses.allHoles().filter(h => h.state === 'open').length * HOLE_COLLATERAL;
+}
 export function outstanding(g: Game): number {
   return g.finance.loans.reduce((s, l) => s + l.remaining, 0);
 }
 export function loanLimit(g: Game): number {
-  return Math.max(0, Math.floor((LOAN_TO_VALUE * (landValue(g) + buildingValue(g)) - outstanding(g)) / 1000) * 1000);
+  return Math.max(0, Math.floor((LOAN_TO_VALUE * (landValue(g) + buildingValue(g) + courseValue(g)) - outstanding(g)) / 1000) * 1000);
 }
 
 /** Level daily payment that clears `principal` over `days` at `rate` a year. */
@@ -52,7 +57,7 @@ export function takeLoan(g: Game, amount: number, termDays: number): Result<Loan
   if (!(Number.isFinite(amount) && amount >= 1000)) return fail('Borrow at least $1,000');
   if (!LOAN_TERMS.includes(termDays)) return fail('Pick a 1, 3 or 5 year term');
   const limit = loanLimit(g);
-  if (amount > limit) return fail(`The bank will lend up to $${limit.toLocaleString()} (half the value of your land and buildings, less what you owe)`);
+  if (amount > limit) return fail(`The bank will lend up to $${limit.toLocaleString()} (half the value of your land, buildings and open holes, less what you owe)`);
   const rate = g.opts.loanRate;
   const principal = Math.round(amount);
   const loan: Loan = { id: g.finance.nextLoanId++, principal, ratePerYear: rate, termDays, remaining: principal, dailyPayment: Math.round(amortised(principal, rate, termDays) * 100) / 100, takenDay: g.day };

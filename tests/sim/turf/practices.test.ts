@@ -75,10 +75,12 @@ test('disease spreads if untreated and clears when sprayed', () => {
   const g = newOwnedGame();
   const t = patch(g, 10, 10, Grass.PoaAnnua, Surface.Fairway);
   const w = g.world;
-  w.flags[w.idx(15, 15)] = TILE_FLAG.disease;
-  for (let d = 0; d < 6; d++) { practicesSystem.onDay!(g); g.clock.day++; }
+  // a damp 3×3 outbreak grows faster than it burns out
+  for (const i of t) w.moisture[i] = 80;
+  for (let y = 14; y <= 16; y++) for (let x = 14; x <= 16; x++) w.flags[w.idx(x, y)] = TILE_FLAG.disease;
+  for (let d = 0; d < 10; d++) { practicesSystem.onDay!(g); g.clock.day++; }
   const n = diseased(g, t);
-  expect(n).toBeGreaterThan(4);
+  expect(n).toBeGreaterThan(9);
   // diseased turf loses health in the turf pass
   runDays(g, 3);
   const sick = t.filter(i => w.flags[i]! & TILE_FLAG.disease);

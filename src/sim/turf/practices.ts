@@ -117,7 +117,11 @@ export function diseaseChance(g: Game, i: number): number {
   return 0.00004 * spec.diseaseRisk * humid * wet * weak;
 }
 
-export const SPREAD_CHANCE = 0.25;
+export const SPREAD_CHANCE = 0.08;
+/** Daily chance an untreated patch burns out by itself (doubled when the turf is drying out). */
+export const SELF_CLEAR_CHANCE = 0.04;
+/** Daily chance a tile gains a point of thatch. */
+export const THATCH_CHANCE = 0.25;
 
 export const practicesSystem: System = {
   name: 'practices',
@@ -127,6 +131,7 @@ export const practicesSystem: System = {
     const day = g.day;
     const spreadTo: number[] = [];
     let outbreaks = 0;
+    let firstAt: { x: number; y: number } | undefined;
     for (let i = 0; i < n; i++) {
       const gr = w.grass[i]!;
       if (gr === Grass.None) {
@@ -135,8 +140,9 @@ export const practicesSystem: System = {
         continue;
       }
       // thatch builds up slowly under living turf
-      if (w.thatch[i]! < 100 && hash01(i, day, 1) < 0.5) w.thatch[i]!++;
+      if (w.thatch[i]! < 100 && hash01(i, day, 1) < THATCH_CHANCE) w.thatch[i]!++;
       if (w.flags[i]! & TILE_FLAG.disease) {
+        if (hash01(i, day, 4) < SELF_CLEAR_CHANCE * (w.moisture[i]! < 60 ? 2 : 1)) { w.flags[i] = w.flags[i]! & ~TILE_FLAG.disease; continue; }
         const x = i % w.size, y = Math.floor(i / w.size);
         if (x > 0) spreadTo.push(i - 1);
         if (x < w.size - 1) spreadTo.push(i + 1);
@@ -145,13 +151,14 @@ export const practicesSystem: System = {
       } else if (w.courseId[i] && hash01(i, day, 2) < diseaseChance(g, i)) {
         w.flags[i] = w.flags[i]! | TILE_FLAG.disease;
         outbreaks++;
+        firstAt ??= { x: i % w.size, y: Math.floor(i / w.size) };
       }
     }
     for (const j of spreadTo) {
       if (w.grass[j] === Grass.None || w.flags[j]! & TILE_FLAG.disease) continue;
       if (hash01(j, day, 3) < SPREAD_CHANCE) w.flags[j] = w.flags[j]! | TILE_FLAG.disease;
     }
-    if (outbreaks) g.notify('warn', `Disease spotted on the course (${outbreaks} new patch${outbreaks > 1 ? 'es' : ''}) — spray it before it spreads`);
+    if (outbreaks) g.notify('warn', `Disease spotted on the course (${outbreaks} new patch${outbreaks > 1 ? 'es' : ''}) — spray it before it spreads`, firstAt);
   },
 };
 

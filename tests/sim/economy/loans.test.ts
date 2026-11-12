@@ -1,11 +1,12 @@
-import { LOAN_RATE, LOAN_TERMS, MISSED_LIMIT, buildingValue, checkSolvency, loanLimit, loanSystem, payLoans } from '../../../src/sim/economy/loans';
+import { HOLE_COLLATERAL, LOAN_RATE, LOAN_TERMS, MISSED_LIMIT, buildingValue, checkSolvency, loanLimit, loanSystem, payLoans } from '../../../src/sim/economy/loans';
 import { INSURANCE_PER_HOLE, landValue, recurringSystem } from '../../../src/sim/economy/finance';
 import { DAYS_PER_YEAR } from '../../../src/sim/clock';
 import { addClubhouse, threeHoleCourse } from '../golfers/courseFixture';
 import { newOwnedGame } from '../../helpers';
 
-test('the bank lends up to half the land and buildings, less what is owed', () => {
+test('the bank lends up to half the land, buildings and open holes, less what is owed', () => {
   const { g, course } = threeHoleCourse();
+  for (const h of course.holes) h.state = 'closed';
   const land = landValue(g);
   expect(land).toBeGreaterThan(0);
   expect(loanLimit(g)).toBe(Math.floor(land * 0.5 / 1000) * 1000);
@@ -19,6 +20,9 @@ test('the bank lends up to half the land and buildings, less what is owed', () =
   expect(g.ledger.cash).toBe(cash + 100_000);
   expect(loanLimit(g)).toBe(Math.floor((limit - 100_000) / 1000) * 1000);
   expect(g.finance.loans[0]!.ratePerYear).toBe(LOAN_RATE.normal);
+  // open holes count as collateral
+  course.holes[0]!.state = 'open';
+  expect(loanLimit(g)).toBe(Math.floor((limit - 100_000 + HOLE_COLLATERAL * 0.5) / 1000) * 1000);
 });
 
 test('daily repayments amortise the loan to zero at the end of its term', () => {

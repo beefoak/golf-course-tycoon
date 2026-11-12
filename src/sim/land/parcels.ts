@@ -6,8 +6,8 @@ import { World } from '../world/world';
 import { Feature, Surface, isBlockingFeature } from '../world/tiles';
 
 export const SELL_BACK_RATE = 0.7;
-export const PRICE_MIN = 20_000;
-export const PRICE_MAX = 150_000;
+export const PRICE_MIN = 3_000;
+export const PRICE_MAX = 60_000;
 
 export class ParcelGrid {
   readonly perSide: number;
@@ -29,8 +29,9 @@ export class ParcelGrid {
   }
 
   /**
-   * Proposal formula (plan Task 4): $20k + $60k × buildable fraction + $40k if within 2 parcels
-   * of the road + $30k × water-frontage fraction, ±5% jitter, clamped and rounded to $1,000.
+   * $3k + $8k × buildable fraction + $5k if within 2 parcels of the road + $5k × water-frontage
+   * fraction, ±5% jitter, clamped and rounded to $1,000. A parcel is a hectare; prices are kept
+   * low because the game year is 112 days (rebalanced in Task 45 from the proposal's $20k + $60k + $40k + $30k).
    */
   static priceFor(world: World, px: number, py: number, rng: Rng): number {
     let buildable = 0, water = 0, total = 0;
@@ -48,7 +49,7 @@ export class ParcelGrid {
     const perSide = Math.ceil(world.size / PARCEL_TILES);
     const nearRoad = perSide - 1 - py <= 2;
     const waterFrac = Math.min(1, (water / total) * 4); // a little water = good frontage
-    let p = 20_000 + 60_000 * (buildable / total) + (nearRoad ? 40_000 : 0) + 30_000 * waterFrac;
+    let p = 3_000 + 8_000 * (buildable / total) + (nearRoad ? 5_000 : 0) + 5_000 * waterFrac;
     p *= rng.range(0.95, 1.05);
     p = Math.round(p / 1000) * 1000;
     return Math.max(PRICE_MIN, Math.min(PRICE_MAX, p));

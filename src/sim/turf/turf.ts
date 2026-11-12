@@ -143,8 +143,8 @@ export function addWear(g: Game, x: number, y: number, amount: number): void {
 }
 
 // --- simulation ---
-/** Stripes: each tick processes every STRIPES-th tile, so a full pass takes STRIPES ticks (6 game minutes). */
-export const STRIPES = 60;
+/** Stripes: each tick processes every STRIPES-th tile, so a full pass takes STRIPES ticks (an hour of game time; rates scale with DT_DAYS). */
+export const STRIPES = 600;
 const DT_DAYS = STRIPES / 10 / 960;
 
 /** Deterministic stochastic rounding: integer tile fields still move by fractional amounts on average. */

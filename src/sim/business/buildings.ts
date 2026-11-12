@@ -2,6 +2,7 @@ import { isUnlocked } from '../rating/unlocks';
 import { Vec2 } from '../../core/geom';
 import { Result, fail, ok } from '../../core/result';
 import { commitPlan } from '../construction/plan';
+import { clearStroke } from '../construction/undo';
 import { emptyPlan } from '../construction/plan';
 import type { Game, System } from '../game';
 import { Feature, Surface } from '../world/tiles';
@@ -166,6 +167,8 @@ export function placeBuilding(g: Game, kind: BuildingKind, courseId: number, ori
   plan.cost = def.cost[0]!;
   const r = commitPlan(g, plan, 'construction');
   if (!r.ok) return r;
+  // a building is more than its tiles: not undoable as a stroke
+  clearStroke(g);
   const b: Building = { id: g.nextBuildingId++, kind, courseId, tier: 1, origin: { x: Math.round(origin.x), y: Math.round(origin.y) }, w: def.w, h: def.h, door: fp.value.door };
   g.buildings.push(b);
   if (kind === 'clubhouse') course.clubhouse = { ...b.door };

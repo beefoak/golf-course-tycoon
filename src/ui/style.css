@@ -48,3 +48,19 @@ table.grid td, table.grid th { padding: 2px 4px; text-align: right; border-botto
 table.grid td:first-child, table.grid th:first-child { text-align: left; }
 .warnline { color: var(--warn); }
 .errline { color: var(--bad); }
+
+/* tutorial step card (Task 45) */
+.tutorial { position: absolute; left: 134px; bottom: 76px; width: 340px; padding: 10px 12px; pointer-events: auto; border-left: 4px solid var(--accent); display: flex; flex-direction: column; gap: 6px; line-height: 1.45; }
+.tutorial .row { display: flex; justify-content: space-between; align-items: baseline; }
+.tutorial b { color: var(--accent); }
+.tutorial .actions { display: flex; justify-content: flex-end; }
+.tutorial.pulse { animation: tut-pulse 0.6s ease-out; }
+@keyframes tut-pulse { from { box-shadow: 0 0 0 0 #8fd16a99; } to { box-shadow: 0 0 0 12px #8fd16a00; } }
+
+/* keyboard shortcut overlay */
+.shortcuts { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 80px); overflow: auto; }
+.shortcuts .cols { display: flex; gap: 18px; flex-wrap: wrap; }
+.shortcuts table { flex: 1 1 320px; border-collapse: collapse; }
+.shortcuts th { text-align: left; color: var(--accent); padding: 4px 0; }
+.shortcuts td { padding: 3px 6px 3px 0; vertical-align: top; }
+.shortcuts td.keys { white-space: nowrap; color: var(--accent); font-family: var(--font); font-size: 10px; }

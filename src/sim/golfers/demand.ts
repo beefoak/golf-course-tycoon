@@ -11,7 +11,8 @@ import { competitionFactor, rivalFactor } from '../rating/rivals';
 import { blockTeeSheet } from '../rating/events';
 import { isClosedSeason, weatherDemandFactor } from '../turf/weather';
 
-export const BASE_DEMAND = 30;
+/** Golfers a day for an ordinary 9-hole course at $55 per 18 (an 18 doubles it). */
+export const BASE_DEMAND = 100;
 
 /** Demand multipliers: 2.5 stars is ordinary (×1), 5 stars brings 1.6× the golfers, 0 stars 0.4×. */
 export const demandHooks = {
@@ -34,9 +35,11 @@ export function avgFeePer18(g: Game, course: Course): number {
   return opts.reduce((s, len) => s + (averagePrice(g, course, g.day, len) * 18) / len, 0) / opts.length;
 }
 
+/** The fee per 18 that leaves demand unchanged (mid-market willingness). */
+export const PRICE_REFERENCE_18 = 55;
 export function priceFactor(feePer18: number): number {
   if (feePer18 <= 0) return 2.5;
-  return Math.max(0.2, Math.min(2.5, (40 / feePer18) ** 0.8));
+  return Math.max(0.2, Math.min(2.5, (PRICE_REFERENCE_18 / feePer18) ** 0.8));
 }
 
 /** Expected golfers per day. */

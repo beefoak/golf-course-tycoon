@@ -23,7 +23,7 @@ export interface Pricing {
   fill?: number[];
 }
 
-export const DEFAULT_FEE_PER_HOLE = 8;
+export const DEFAULT_FEE_PER_HOLE = 4;
 export const DEFAULT_BANDS = { peak: 1, offPeak: 0.85, twilight: 0.6 };
 export const DEFAULT_WEEKEND = 1.15;
 export const DEFAULT_SEASON: Record<Season, number> = { spring: 1, summer: 1.1, autumn: 0.95, winter: 0.8 };

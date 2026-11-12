@@ -7,7 +7,7 @@ import { newOwnedGame } from '../../helpers';
 
 test('bunker lowers terrain and charges sand × multiplier plus earthworks', () => {
   const g = newOwnedGame(); const p = planBunker(g, [{ x: 25, y: 25 }], 'premium');
-  expect(p.cost).toBeCloseTo(250 * SAND.premium.costMult + 0.6 * 4 * COSTS.cutPerM3);
+  expect(p.cost).toBeCloseTo(COSTS.surface[Surface.Bunker] * SAND.premium.costMult + 0.6 * 4 * COSTS.cutPerM3);
   commitPlan(g, p, 'construction'); const i = g.world.idx(25, 25);
   expect(g.world.surface[i]).toBe(Surface.Bunker); expect(g.world.elevation[i]).toBeCloseTo(9.4); expect(g.soilStockpileM3).toBeCloseTo(2.4);
 });

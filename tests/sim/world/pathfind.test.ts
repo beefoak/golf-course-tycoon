@@ -1,6 +1,6 @@
 import { commitPlan } from '../../../src/sim/construction/plan';
 import { planBridge, planPath } from '../../../src/sim/construction/paths';
-import { findPath, tileCost } from '../../../src/sim/world/pathfind';
+import { clearPathCache, findPath, tileCost } from '../../../src/sim/world/pathfind';
 import { Feature, Surface } from '../../../src/sim/world/tiles';
 import { newOwnedGame } from '../../helpers';
 
@@ -55,4 +55,19 @@ test('paths are preferred over rough', () => {
   commitPlan(g, planPath(g, tiles, 'asphalt'), 'construction');
   const p = findPath(g, { x: 5.5, y: 12.5 }, { x: 94.5, y: 12.5 }, 'walk')!;
   expect(p.some(q => Math.floor(q.y) === 10)).toBe(true);
+});
+
+test('a goal walled off by water fails at once, and opens up again after an edit', () => {
+  const g = pondGame();
+  // close the east gap: the south half is now cut off
+  for (let y = 40; y < 50; y++) for (let x = 80; x < 100; x++) g.world.surface[g.world.idx(x, y)] = Surface.Water;
+  clearPathCache(g);
+  const t0 = performance.now();
+  expect(findPath(g, { x: 20.5, y: 20.5 }, { x: 20.5, y: 70.5 }, 'walk')).toBeNull();
+  expect(findPath(g, { x: 30.5, y: 22.5 }, { x: 60.5, y: 75.5 }, 'walk')).toBeNull();
+  expect(performance.now() - t0).toBeLessThan(200);
+  // a bridge reconnects the halves (commitPlan emits an edit, which rebuilds the regions)
+  const tiles = []; for (let y = 40; y < 50; y++) for (let x = 19; x <= 21; x++) tiles.push({ x, y });
+  expect(commitPlan(g, planBridge(g, tiles), 'construction').ok).toBe(true);
+  expect(findPath(g, { x: 20.5, y: 20.5 }, { x: 20.5, y: 70.5 }, 'walk')).not.toBeNull();
 });

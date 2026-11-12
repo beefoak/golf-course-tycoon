@@ -95,7 +95,7 @@ export function financeTool(g: Game): PanelTool {
       const limit = loanLimit(g);
       body = h('div', null,
         row('Bank will lend up to', money(limit)),
-        h('div', { class: 'muted' }, 'Half the value of your land and buildings, less what you already owe. Paid back daily; three days in the red while owing money and the bank calls it in.'),
+        h('div', { class: 'muted' }, 'Half the value of your land, buildings and open holes ($120k each), less what you already owe. Paid back daily; three days in the red while owing money and the bank calls it in.'),
         h('div', { style: 'display:flex;gap:3px;align-items:center;margin:4px 0;flex-wrap:wrap' },
           '$', h('input', { type: 'number', min: 1000, step: 10000, value: loanAmount, style: `width:90px;${INPUT_STYLE}`, onchange: (e: Event) => { loanAmount = Number((e.target as HTMLInputElement).value); } }),
           h('select', { style: INPUT_STYLE, onchange: (e: Event) => { loanTerm = Number((e.target as HTMLSelectElement).value); } },

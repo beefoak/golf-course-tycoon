@@ -1,19 +1,19 @@
 import { Surface } from '../world/tiles';
 
-/** Construction prices (GDD §5, proposal values). Per tile unless stated. */
+/** Construction prices per tile (a tile is 4 m²) unless stated. Rebalanced in Task 45: see docs/balance-notes.md. */
 export const COSTS = {
   surface: {
-    [Surface.Natural]: 5,
-    [Surface.Tee]: 120,
-    [Surface.Fairway]: 40,
-    [Surface.Green]: 400,
-    [Surface.Fringe]: 150,
-    [Surface.FirstCut]: 25,
-    [Surface.Rough]: 15,
-    [Surface.DeepRough]: 10,
-    [Surface.Native]: 8,
-    [Surface.Bunker]: 250,
-    [Surface.Waste]: 60,
+    [Surface.Natural]: 2,
+    [Surface.Tee]: 60,
+    [Surface.Fairway]: 14,
+    [Surface.Green]: 180,
+    [Surface.Fringe]: 60,
+    [Surface.FirstCut]: 8,
+    [Surface.Rough]: 3,
+    [Surface.DeepRough]: 4,
+    [Surface.Native]: 3,
+    [Surface.Bunker]: 120,
+    [Surface.Waste]: 30,
     [Surface.Water]: 0,
     [Surface.Path]: 0,
     [Surface.Building]: 0,
@@ -22,7 +22,7 @@ export const COSTS = {
   fillFromStockPerM3: 4,
   importFillPerM3: 22,
   treePlantDefault: 350,
-  treeRemove: 400,
+  treeRemove: 40,
   specimenRemove: 12_000,
   digWaterPerM3: 9,
   pondLinerPerTile: 30,

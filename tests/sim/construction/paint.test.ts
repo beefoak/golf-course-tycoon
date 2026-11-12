@@ -7,12 +7,12 @@ test('brushTiles circle radius 2 has 13 tiles, square has 25', () => {
   expect(brushTiles(10, 10, 2).length).toBe(13); expect(brushTiles(10, 10, 2, 'square').length).toBe(25);
   expect(brushTiles(10, 10, 0)).toEqual([{ x: 10, y: 10 }]);
 });
-test('fairway costs $40 per tile', () => { expect(COSTS.surface[Surface.Fairway]).toBe(40); expect(COSTS.surface[Surface.Green]).toBe(400); });
+test('fairway costs $14 per tile, greens $180', () => { expect(COSTS.surface[Surface.Fairway]).toBe(14); expect(COSTS.surface[Surface.Green]).toBe(180); });
 test('paint charges per tile and sets surface', () => {
   const g = newOwnedGame(); const p = planSurfacePaint(g, brushTiles(25, 25, 2), Surface.Fairway);
-  expect(p.changes.length).toBe(13); expect(p.cost).toBe(13 * 40);
+  expect(p.changes.length).toBe(13); expect(p.cost).toBe(13 * COSTS.surface[Surface.Fairway]);
   const before = g.ledger.cash; expect(commitPlan(g, p, 'construction').ok).toBe(true);
-  expect(g.world.surface[g.world.idx(25, 25)]).toBe(Surface.Fairway); expect(g.ledger.cash).toBe(before - 520);
+  expect(g.world.surface[g.world.idx(25, 25)]).toBe(Surface.Fairway); expect(g.ledger.cash).toBe(before - 13 * COSTS.surface[Surface.Fairway]);
 });
 test('painting the same surface again costs nothing', () => {
   const g = newOwnedGame(); commitPlan(g, planSurfacePaint(g, brushTiles(25, 25, 1), Surface.Rough), 'construction');
@@ -45,6 +45,6 @@ test('dispatch paint command', () => {
 });
 test('painting over trees removes them and charges removal', () => {
   const g = newOwnedGame(); g.world.treeSpecies[g.world.idx(25, 25)] = 1;
-  const p = planSurfacePaint(g, [{ x: 25, y: 25 }], Surface.Fairway); expect(p.cost).toBe(40 + COSTS.treeRemove);
+  const p = planSurfacePaint(g, [{ x: 25, y: 25 }], Surface.Fairway); expect(p.cost).toBe(COSTS.surface[Surface.Fairway] + COSTS.treeRemove);
   commitPlan(g, p, 'construction'); expect(g.world.treeSpecies[g.world.idx(25, 25)]).toBe(0);
 });

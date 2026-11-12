@@ -14,7 +14,7 @@ import { INPUT_STYLE } from '../tools/panelTool';
 import { Tool } from '../tools/tool';
 
 /** Play your own course: click to aim, Space three times to swing (start, power, accuracy). */
-export function playTool(g: Game, loop: { speed: Speed }): Tool {
+export function playTool(g: Game, loop: { speed: Speed }, onShot?: (putt: boolean) => void): Tool {
   let play: PlayMode | null = null;
   let handicap = 15;
   let tee: TeeKind = 'middle';
@@ -39,7 +39,7 @@ export function playTool(g: Game, loop: { speed: Speed }): Tool {
     // small steps so the turn at the top of the sweep is exact
     for (let left = dt; left > 0; left -= 20) play.meter.update(Math.min(20, left));
     // the marker ran off the end: the swing plays itself out as a full miss
-    if (before === 'accuracy' && play.meter.phase === 'done') { play.swing(play.meter); play.meter = new SwingMeter(play.meter.speed); render(); }
+    if (before === 'accuracy' && play.meter.phase === 'done') { onShot?.(play.club.id === 'P'); play.swing(play.meter); play.meter = new SwingMeter(play.meter.speed); render(); }
   };
   const tick = (now: number) => {
     raf = requestAnimationFrame(tick);
@@ -111,7 +111,8 @@ export function playTool(g: Game, loop: { speed: Speed }): Tool {
       e.stopPropagation();
       catchUp(performance.now());
       if (play.meter.phase === 'idle') last = performance.now();
-      if (play.press()) render();
+      const putt = play.club.id === 'P';
+      if (play.press()) { onShot?.(putt); render(); }
     },
     status: () => play && !play.done ? `Hole ${play.hole()?.number} · ${play.club.id} · ${Math.round(play.distanceM())} m · wind ${Math.round(Math.hypot(g.weather.wind.x, g.weather.wind.y))} m/s` : 'Play mode: tee off from the panel',
     drawPreview(gfx: Graphics) {

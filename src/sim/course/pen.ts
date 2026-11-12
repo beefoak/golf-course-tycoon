@@ -1,7 +1,9 @@
 import { Vec2, dist } from '../../core/geom';
 import { Result, fail, ok } from '../../core/result';
-import { tilesToYards, yardsToTiles } from '../../core/units';
+import { TILE_M, tilesToYards, yardsToTiles } from '../../core/units';
+import { COSTS } from '../construction/costs';
 import { commitPlan, EditPlan } from '../construction/plan';
+import { lastStroke } from '../construction/undo';
 import { planSurfaceMap } from '../construction/paint';
 import type { Game } from '../game';
 import { Feature, Surface } from '../world/tiles';
@@ -136,6 +138,7 @@ export function planPenHole(g: Game, input: PenInput): { plan: EditPlan; draftHo
   }
 
   const plan = planSurfaceMap(g, map);
+  gradeGreen(g, plan, map, green, greenR);
   const r = greenR * 0.45;
   const pins = [{ x: 0, y: -r }, { x: r, y: 0 }, { x: 0, y: r }, { x: -r, y: 0 }].map(o => ({ x: Math.round(green.x + o.x), y: Math.round(green.y + o.y) }));
   const draftHole: Omit<Hole, 'id' | 'number'> = {
@@ -147,6 +150,42 @@ export function planPenHole(g: Game, input: PenInput): { plan: EditPlan; draftHo
   return { plan, draftHole, warnings: [...warnings], region };
 }
 
+/** Steepest tilt a new green is built with (rise per metre); real greens are 1–3%. */
+export const MAX_GREEN_SLOPE = 0.02;
+/** Tiles beyond the fringe over which the graded green blends back into the natural ground. */
+const GREEN_BLEND_TILES = 6;
+
+/**
+ * Build the green on a gentle plane: the natural slope through the green centre, flattened to
+ * MAX_GREEN_SLOPE, blended back into the ground around it. Charged as earthworks (cut or fill).
+ */
+function gradeGreen(g: Game, plan: EditPlan, map: Map<number, Surface>, c: Vec2, greenR: number): void {
+  const w = g.world;
+  const at = (x: number, y: number) => w.elevation[w.idx(Math.max(0, Math.min(w.size - 1, Math.round(x))), Math.max(0, Math.min(w.size - 1, Math.round(y))))]!;
+  const R = Math.max(2, Math.round(greenR));
+  const gx = (at(c.x + R, c.y) - at(c.x - R, c.y)) / (2 * R), gy = (at(c.x, c.y + R) - at(c.x, c.y - R)) / (2 * R);
+  const tilt = Math.hypot(gx, gy) / TILE_M;
+  const k = tilt > MAX_GREEN_SLOPE ? MAX_GREEN_SLOPE / tilt : 1;
+  if (k === 1) return;
+  const ce = at(c.x, c.y);
+  const byI = new Map(plan.changes.map(ch => [ch.i, ch]));
+  const outer = greenR + 1 + GREEN_BLEND_TILES;
+  for (const i of map.keys()) {
+    const x = i % w.size, y = Math.floor(i / w.size);
+    const d = Math.hypot(x - c.x, y - c.y);
+    if (d > outer) continue;
+    const plane = ce + k * (gx * (x - c.x) + gy * (y - c.y));
+    const t = d <= greenR + 1 ? 0 : (d - greenR - 1) / GREEN_BLEND_TILES;
+    const e = w.elevation[i]!;
+    const ne = Math.round((plane * (1 - t) + e * t) * 100) / 100;
+    if (Math.abs(ne - e) < 0.01) continue;
+    let ch = byI.get(i);
+    if (!ch) { ch = { i }; plan.changes.push(ch); byI.set(i, ch); }
+    ch.elevation = ne;
+    plan.cost += Math.abs(ne - e) * TILE_M * TILE_M * COSTS.cutPerM3;
+  }
+}
+
 export function commitPenHole(g: Game, input: PenInput): Result<Hole> {
   if (input.route.length < 2 || input.route.length > 4) return fail('Draw a tee, up to two waypoints and a green');
   if (!g.courses.get(input.courseId)) return fail('No such course');
@@ -154,7 +193,19 @@ export function commitPenHole(g: Game, input: PenInput): Result<Hole> {
   const r = commitPlan(g, plan, 'construction');
   if (!r.ok) return r;
   const { name: _n, ...rest } = draftHole;
+  // the stroke also covers the corridor tiles that only change hands (hole membership)
+  const stroke = lastStroke(g);
+  if (stroke) {
+    const have = new Set(stroke.tiles.map(t => t.i));
+    const w = g.world;
+    for (const i of region) if (!have.has(i)) stroke.tiles.push({ i, surface: w.surface[i]!, elevation: w.elevation[i]!, treeSpecies: w.treeSpecies[i]!, treeAgeDays: w.treeAgeDays[i]!, feature: w.feature[i]!, firmness: w.firmness[i]!, grass: w.grass[i]!, health: w.health[i]!, holeId: w.holeId[i]!, courseId: w.courseId[i]! });
+  }
   const h = g.courses.addHole(input.courseId, rest);
+  if (stroke) {
+    stroke.label = `${h.name} draft`;
+    stroke.guard = gg => (gg.courses.hole(h.id)?.state === 'construction' ? null : `${h.name} has been seeded: close and edit it instead`);
+    stroke.extra = gg => gg.courses.removeHole(h.id);
+  }
   const skipped = new Set<number>();
   for (const i of region) {
     const x = i % g.world.size, y = Math.floor(i / g.world.size);
@@ -164,7 +215,17 @@ export function commitPenHole(g: Game, input: PenInput): Result<Hole> {
   }
   // hole membership changed: let caches (paths, turf index) rebuild
   g.events.emit('edit', { tiles: region.filter(i => !skipped.has(i)) });
-  // pins must sit on green; drop any that landed on a skipped tile
-  h.pins = h.pins.filter(p => g.world.inBounds(p.x, p.y) && g.world.surface[g.world.idx(p.x, p.y)] === Surface.Green);
+  // pins must sit on green; drop any that landed on a skipped tile (rock, someone else's land)
+  const onGreen = (p: Vec2) => g.world.inBounds(p.x, p.y) && g.world.surface[g.world.idx(p.x, p.y)] === Surface.Green;
+  h.pins = h.pins.filter(onGreen);
+  // and top back up to four from the rest of the green, so the hole can still be seeded
+  const c = h.greenCenter;
+  for (const rr of [0.45, 0.3, 0.6, 0.15]) {
+    for (let k = 0; k < 8 && h.pins.length < 4; k++) {
+      const a = (k * Math.PI) / 4 + Math.PI / 8;
+      const p = { x: Math.round(c.x + Math.cos(a) * yardsToTiles(input.greenRadiusYd) * rr), y: Math.round(c.y + Math.sin(a) * yardsToTiles(input.greenRadiusYd) * rr) };
+      if (onGreen(p) && !h.pins.some(q => Math.abs(q.x - p.x) + Math.abs(q.y - p.y) < 2)) h.pins.push(p);
+    }
+  }
   return ok(h);
 }

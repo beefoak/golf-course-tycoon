@@ -1,6 +1,7 @@
 import { Result, fail, ok } from '../../core/result';
 import { TxCategory } from '../economy/ledger';
 import type { Game } from '../game';
+import { clearStroke, recordStroke } from './undo';
 import { Feature, Surface } from '../world/tiles';
 
 export interface TileChange {
@@ -42,6 +43,9 @@ export function commitPlan(g: Game, p: EditPlan, cat: TxCategory): Result {
   const cost = Math.round(p.cost);
   if (!g.ledger.canAfford(cost)) return fail(`Not enough money ($${cost.toLocaleString()} needed)`);
   g.ledger.spend(cost, cat, g.day);
+  // keep the stroke so it can be taken back (plans with side effects can't be)
+  if (p.onCommit) clearStroke(g);
+  else recordStroke(g, p.changes.map(c => c.i), cat, cost, p.stockpileDelta);
   const w = g.world;
   for (const c of p.changes) {
     if (c.surface !== undefined) w.surface[c.i] = c.surface;

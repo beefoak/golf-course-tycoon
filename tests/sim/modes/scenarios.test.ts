@@ -75,9 +75,9 @@ test('difficulty options: land prices, loan rate and the scenario survive a save
   const base = Game.create({ seed: 9, terrain: 'parkland', difficulty: 'normal', size: 200 });
   const dear = Game.create({ seed: 9, terrain: 'parkland', difficulty: 'normal', size: 200, options: { landPriceMult: 1.4, loanRate: 0.12, startingCash: 777_000 } });
   expect(dear.ledger.cash).toBe(777_000);
-  expect(dear.parcels.price[5]!).toBeGreaterThan(base.parcels.price[5]! * 1.3);
+  expect(dear.parcels.price.reduce((s, x) => s + x, 0)).toBeGreaterThan(base.parcels.price.reduce((s, x) => s + x, 0) * 1.3);
   for (const g of [dear]) { g.parcels.owner[0] = 1; }
-  const r = takeLoan(dear, 10_000, DAYS_PER_YEAR);
+  const r = takeLoan(dear, 2_000, DAYS_PER_YEAR);
   expect(r.ok && r.value.ratePerYear).toBe(0.12);
   // presets and clamping
   expect(resolveDifficulty('hard').loanRate).toBe(0.09);
