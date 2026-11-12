@@ -7,6 +7,7 @@ import { clubhouseOf } from '../../sim/business/buildings';
 import { DEFAULT_BANDS, DEFAULT_WEEKEND, bandAt, hasManager, priceFor } from '../../sim/business/pricing';
 import { MembershipTier, membershipsOf } from '../../sim/business/memberships';
 import { ratingOf } from '../../sim/rating/courseRating';
+import { reputation } from '../../sim/rating/reputation';
 import { Command } from '../../sim/commands';
 import { h, money } from '../dom';
 import { INPUT_STYLE } from '../tools/panelTool';
@@ -91,6 +92,18 @@ export function statsPanel(g: Game, courseId: number, refresh: () => void): HTML
     ms.tiers.length < 4 ? h('button', { class: 'btn', onclick: () => run({ t: 'setMembershipTier', courseId, index: ms.tiers.length, tier: { name: ms.tiers.length ? `Tier ${ms.tiers.length + 1}` : 'Full', annualFee: 1500, reservedSlotsPerDay: 3, includedRounds: 'unlimited' } }) }, '+ Add tier') : null,
     h('div', { class: 'muted' }, 'Regulars who rate the course highly may join. Members play the held tee times; renewals come yearly if they still like it.'),
   ];
+  const stars = (n: number) => `${'★'.repeat(Math.round(n))}${'☆'.repeat(5 - Math.round(n))} ${n.toFixed(1)}`;
+  const rep = opts.length ? reputation(g, courseId) : null;
+  const latest = g.reviews.filter(r => r.courseId === courseId).slice(-3).reverse();
+  const repRows = rep ? [
+    h('label', null, 'Reputation'),
+    h('div', { class: 'row' }, h('span', { class: 'muted' }, `Overall (${rep.reviews} reviews)`), h('span', null, stars(rep.overall))),
+    h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Condition · Looks · Pace · Value'),
+      h('span', null, [rep.scores.condition, rep.scores.aesthetics, rep.scores.pace, rep.scores.value].map(x => Math.round(x)).join(' · '))),
+    h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Budget · Mid · Premium'),
+      h('span', null, [rep.bySegment.budget, rep.bySegment.mid, rep.bySegment.premium].map(x => x.toFixed(1)).join(' · '))),
+    ...latest.map(r => h('div', { class: 'muted', style: 'font-size:11px' }, `${'★'.repeat(r.stars)} “${r.text}” — ${g.golfers.all.get(r.golferId)?.name ?? 'a golfer'}`)),
+  ] : [];
   const hardest = st.hardestHoles(3).map(id => g.courses.hole(id)).filter(Boolean);
   const avgRound = st.avgRoundMinutes();
 
@@ -98,6 +111,7 @@ export function statsPanel(g: Game, courseId: number, refresh: () => void): HTML
     h('h3', null, course.name),
     !clubhouseOf(g, courseId) ? h('div', { class: 'warnline' }, 'No clubhouse yet — golfers won\'t come. Build one next to the road.') : null,
     !opts.length ? h('div', { class: 'warnline' }, 'No open holes yet.') : null,
+    ...repRows,
     ...feeRows,
     ...pricingRows,
     ...memberRows,

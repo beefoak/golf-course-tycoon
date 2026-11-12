@@ -5,7 +5,14 @@ import { ROLES, RoleId, SKILLS, SkillId, StaffTrait, TRAITS, marketWage } from '
 import { Candidate, skillAvg } from './staff';
 
 /** Job-market quality multiplier (reputation, Task 40; 1.0 until then). */
-export const marketHooks = { quality: (_g: Game): number => 1 };
+/** Better-regarded clubs attract better candidates: 2.5 stars is ordinary. */
+export const marketHooks = {
+  quality: (g: Game): number => {
+    const r = [...g.reputation.values()];
+    const stars = r.length ? r.reduce((s, x) => s + x.overall, 0) / r.length : 2.5;
+    return 0.85 + 0.06 * stars;
+  },
+};
 
 export function marketWeek(g: Game): number {
   return Math.floor((g.day - 1) / 7);

@@ -6,13 +6,14 @@ import { createGroup } from './groups';
 import { TeeSheet, roundHoles, roundOptions } from './teeSheet';
 import { averagePrice, priceFor, recordFill } from '../business/pricing';
 import { bookMembers, reservedSlots } from '../business/memberships';
+import { reputation } from '../rating/reputation';
 import { isClosedSeason, weatherDemandFactor } from '../turf/weather';
 
 export const BASE_DEMAND = 30;
 
-/** Demand multipliers (reputation is a placeholder until Task 40). */
+/** Demand multipliers: 2.5 stars is ordinary (×1), 5 stars brings 1.6× the golfers, 0 stars 0.4×. */
 export const demandHooks = {
-  reputation: (_g: Game, _course: Course): number => 1,
+  reputation: (g: Game, course: Course): number => 0.4 + 0.24 * reputation(g, course.id).overall,
   weather: (g: Game): number => (isClosedSeason(g) ? 0 : weatherDemandFactor(g.weather)),
 };
 
@@ -62,7 +63,16 @@ function pickGolfer(g: Game, course: Course, busy: Set<number>): Golfer {
     for (const k of known) { r -= 100 + (k.opinion[course.id] ?? 0); if (r <= 0) return k; }
     return known[known.length - 1]!;
   }
-  return g.golfers.spawn(rng);
+  // newcomers hear what people like them say: segments and types that rate the course low come less
+  const rep = reputation(g, course.id);
+  let gf = g.golfers.spawn(rng);
+  for (let tries = 0; tries < 2; tries++) {
+    const rel = (rep.bySegment[gf.segment] + rep.byType[gf.type]) / 2 - rep.overall;
+    if (rng.chance(Math.max(0.3, Math.min(1, 0.8 + 0.5 * rel)))) break;
+    g.golfers.all.delete(gf.id);
+    gf = g.golfers.spawn(rng);
+  }
+  return gf;
 }
 
 /** Preferred tee time: a morning peak with an afternoon shoulder. */
